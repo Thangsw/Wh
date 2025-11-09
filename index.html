@@ -282,6 +282,51 @@
             justify-content: center;
         }
 
+        .reference-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .reference-item {
+            position: relative;
+            border-radius: 6px;
+            overflow: hidden;
+            background: var(--bg-main);
+            border: 2px solid var(--border-color);
+        }
+
+        .reference-item img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .reference-item-remove {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .reference-item-remove:hover {
+            background: rgba(255, 0, 0, 1);
+            transform: scale(1.1);
+        }
+
         /* Settings Grid */
         .settings-row {
             display: grid;
@@ -577,6 +622,59 @@
             transform: rotate(90deg);
         }
 
+        .modal-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            color: #000;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            z-index: 10;
+        }
+
+        .modal-nav:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .modal-nav:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .modal-nav-prev { left: 20px; }
+        .modal-nav-next { right: 20px; }
+
+        .modal-prompt-container {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .modal-prompt {
+            flex: 1;
+            font-size: 15px;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .modal-seed {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
         /* Responsive */
         @media (max-width: 1024px) {
             .sidebar {
@@ -642,18 +740,23 @@
                     <div class="help-text">Phong cách sẽ tự động thêm vào prompt</div>
                 </div>
 
-                <!-- Reference Image -->
+                <!-- Reference Images -->
                 <div class="reference-section" id="referenceSection">
                     <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
-                        🖼️ Ảnh Tham Chiếu
+                        🖼️ Ảnh Tham Chiếu (<span id="referenceCount">0</span>)
                     </label>
-                    <div class="help-text">Click "Ref" ở ảnh để dùng làm tham chiếu</div>
-                    <div id="referencePreview" class="reference-preview" style="display: none;">
-                        <img id="referenceImg" src="" alt="Reference">
-                        <div class="reference-actions">
-                            <button class="btn btn-secondary" onclick="clearReference()">✕ Xóa</button>
-                        </div>
-                    </div>
+                    <div class="help-text">Chọn nhiều ảnh để làm tham chiếu (từ thư viện hoặc upload)</div>
+
+                    <button class="btn btn-secondary" onclick="uploadReferenceImage()" style="width: 100%; margin-bottom: 12px;">
+                        📤 Upload Ảnh Từ Máy
+                    </button>
+                    <input type="file" id="referenceFileInput" accept="image/*" style="display: none;" onchange="handleReferenceFileUpload(event)">
+
+                    <div id="referenceGrid" class="reference-grid"></div>
+
+                    <button class="btn btn-secondary" onclick="clearAllReferences()" id="clearReferencesBtn" style="width: 100%; margin-top: 8px; display: none;">
+                        ✕ Xóa Tất Cả
+                    </button>
                 </div>
 
                 <!-- Prompts Input -->
@@ -765,10 +868,30 @@
     <div class="modal" id="imageModal" onclick="closeModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
             <button class="modal-close" onclick="closeModal()">×</button>
+
+            <!-- Batch Navigation -->
+            <button class="modal-nav modal-nav-prev" id="modalPrevBatch" onclick="navigateBatch(-1)" title="Batch trước">◄</button>
+            <button class="modal-nav modal-nav-next" id="modalNextBatch" onclick="navigateBatch(1)" title="Batch sau">►</button>
+
             <img class="modal-image" id="modalImage" src="" alt="">
+
             <div class="modal-info">
-                <div class="modal-prompt" id="modalPrompt"></div>
+                <div class="modal-prompt-container">
+                    <div class="modal-prompt" id="modalPrompt"></div>
+                    <button class="btn-icon" onclick="editModalPrompt()" id="modalEditBtn" title="Chỉnh sửa prompt" style="padding: 4px 8px; font-size: 10px; margin-left: 8px;">✏️</button>
+                </div>
+
+                <div class="modal-seed" id="modalSeed"></div>
+
+                <!-- Version Navigation -->
+                <div class="modal-version-nav" id="modalVersionNav" style="display: none; margin: 12px 0; text-align: center;">
+                    <button class="btn-icon" onclick="navigateModalVersion('prev')" id="modalVerPrev">←</button>
+                    <span id="modalVersionInfo" style="margin: 0 12px; font-size: 13px; color: var(--text-secondary);"></span>
+                    <button class="btn-icon" onclick="navigateModalVersion('next')" id="modalVerNext">→</button>
+                </div>
+
                 <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="regenerateModalImage()">🔄 Regen</button>
                     <button class="btn btn-primary" onclick="downloadCurrentImage()">📥 Tải về</button>
                     <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
                 </div>
@@ -781,7 +904,7 @@
         let images = [];
         let downloadFolderHandle = null;
         let currentModalImage = null;
-        let referenceImage = null;
+        let referenceImages = []; // Array of reference images
 
         // Batch reference chain: tracks which image references which
         // Format: { imageId: { referenceId, generationId } }
@@ -870,16 +993,85 @@
 
         // Reference Image
         function setReferenceImage(imageUrl, prompt, seed, generationId) {
-            referenceImage = { imageUrl, prompt, seed, generationId };
-            document.getElementById('referenceImg').src = imageUrl;
-            document.getElementById('referencePreview').style.display = 'block';
-            document.getElementById('referenceSection').classList.add('has-image');
+            // Add to reference images array
+            addReferenceImage({ imageUrl, prompt, seed, generationId });
         }
 
+        function addReferenceImage(refData) {
+            // Check if already exists
+            const exists = referenceImages.some(ref => ref.imageUrl === refData.imageUrl);
+            if (exists) {
+                alert('Ảnh này đã có trong tham chiếu!');
+                return;
+            }
+
+            referenceImages.push(refData);
+            updateReferenceGrid();
+        }
+
+        function removeReferenceImage(index) {
+            referenceImages.splice(index, 1);
+            updateReferenceGrid();
+        }
+
+        function clearAllReferences() {
+            referenceImages = [];
+            updateReferenceGrid();
+        }
+
+        function updateReferenceGrid() {
+            const grid = document.getElementById('referenceGrid');
+            const count = document.getElementById('referenceCount');
+            const clearBtn = document.getElementById('clearReferencesBtn');
+            const section = document.getElementById('referenceSection');
+
+            count.textContent = referenceImages.length;
+
+            if (referenceImages.length > 0) {
+                section.classList.add('has-image');
+                clearBtn.style.display = 'block';
+
+                grid.innerHTML = referenceImages.map((ref, index) => `
+                    <div class="reference-item">
+                        <img src="${ref.imageUrl}" alt="Reference ${index + 1}">
+                        <button class="reference-item-remove" onclick="removeReferenceImage(${index})" title="Xóa">×</button>
+                    </div>
+                `).join('');
+            } else {
+                section.classList.remove('has-image');
+                clearBtn.style.display = 'none';
+                grid.innerHTML = '';
+            }
+        }
+
+        function uploadReferenceImage() {
+            document.getElementById('referenceFileInput').click();
+        }
+
+        async function handleReferenceFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Read file as base64
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageUrl = e.target.result; // base64 data URL
+                addReferenceImage({
+                    imageUrl: imageUrl,
+                    prompt: file.name,
+                    seed: 'uploaded',
+                    generationId: null
+                });
+            };
+            reader.readAsDataURL(file);
+
+            // Clear input
+            event.target.value = '';
+        }
+
+        // Legacy function for backward compatibility
         function clearReference() {
-            referenceImage = null;
-            document.getElementById('referencePreview').style.display = 'none';
-            document.getElementById('referenceSection').classList.remove('has-image');
+            clearAllReferences();
         }
 
         // Folder Selection
@@ -956,8 +1148,8 @@
                     let currentReference = null;
 
                     if (i === 0) {
-                        // First image: use manual reference if set
-                        currentReference = referenceImage;
+                        // First image: use manual reference if set (use first ref image)
+                        currentReference = referenceImages.length > 0 ? referenceImages[0] : null;
                     } else {
                         // Subsequent images: apply batch reference mode
                         if (batchRefMode === 'first' && firstImageResult) {
@@ -1034,8 +1226,8 @@
             const payload = { prompt, aspectRatio };
             if (seed) payload.seed = seed;
 
-            // Use provided reference or fall back to global reference
-            const useReference = refImage || referenceImage;
+            // Use provided reference or fall back to global reference (first image in array)
+            const useReference = refImage || (referenceImages.length > 0 ? referenceImages[0] : null);
 
             if (useReference) {
                 const editPayload = {
@@ -1075,14 +1267,15 @@
             const payload = { prompt, aspectRatio };
             if (seed) payload.seed = seed;
 
-            // If we have reference image, use edit endpoint instead
-            if (referenceImage) {
+            // If we have reference images, use edit endpoint instead (use first one)
+            if (referenceImages.length > 0) {
+                const primaryRef = referenceImages[0];
                 const res = await fetch('/api/edit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         prompt: prompt,
-                        referenceImage: referenceImage.imageUrl,
+                        referenceImage: primaryRef.imageUrl,
                         aspectRatio: aspectRatio
                     })
                 });
@@ -1449,13 +1642,118 @@
             if (!image) return;
 
             currentModalImage = image;
-            const currentVer = image.versions[image.currentVersion];
-            const versionInfo = image.versions.length > 1 ?
-                ` | v${image.versions.length - image.currentVersion}/${image.versions.length}` : '';
-
-            document.getElementById('modalImage').src = currentVer.imageUrl;
-            document.getElementById('modalPrompt').textContent = `"${image.prompt}" (Seed: ${currentVer.seed || 'auto'}${versionInfo})`;
+            updateModalDisplay();
             document.getElementById('imageModal').classList.add('active');
+        }
+
+        function updateModalDisplay() {
+            if (!currentModalImage) return;
+
+            const image = currentModalImage;
+            const currentVer = image.versions[image.currentVersion];
+            const hasHistory = image.versions.length > 1;
+            const currentVersionNum = image.versions.length - image.currentVersion;
+
+            // Update image
+            document.getElementById('modalImage').src = currentVer.imageUrl;
+
+            // Update prompt
+            document.getElementById('modalPrompt').textContent = `"${image.prompt}"`;
+
+            // Update seed info
+            const batchInfo = image.batchIndex !== null ? ` | Batch #${image.batchIndex + 1}` : '';
+            document.getElementById('modalSeed').textContent = `Seed: ${currentVer.seed || 'auto'}${batchInfo}`;
+
+            // Version navigation
+            const versionNav = document.getElementById('modalVersionNav');
+            if (hasHistory) {
+                versionNav.style.display = 'block';
+                document.getElementById('modalVersionInfo').textContent = `[${currentVersionNum}/${image.versions.length}]`;
+                document.getElementById('modalVerPrev').disabled = image.currentVersion >= image.versions.length - 1;
+                document.getElementById('modalVerNext').disabled = image.currentVersion <= 0;
+            } else {
+                versionNav.style.display = 'none';
+            }
+
+            // Batch navigation
+            const hasBatch = image.batchIndex !== null;
+            if (hasBatch) {
+                const prevImage = images.find(img => img.batchIndex === image.batchIndex - 1);
+                const nextImage = images.find(img => img.batchIndex === image.batchIndex + 1);
+                document.getElementById('modalPrevBatch').disabled = !prevImage;
+                document.getElementById('modalNextBatch').disabled = !nextImage;
+                document.getElementById('modalPrevBatch').style.display = 'flex';
+                document.getElementById('modalNextBatch').style.display = 'flex';
+            } else {
+                document.getElementById('modalPrevBatch').style.display = 'none';
+                document.getElementById('modalNextBatch').style.display = 'none';
+            }
+        }
+
+        function navigateBatch(direction) {
+            if (!currentModalImage || currentModalImage.batchIndex === null) return;
+
+            const targetIndex = currentModalImage.batchIndex + direction;
+            const targetImage = images.find(img => img.batchIndex === targetIndex);
+
+            if (targetImage) {
+                currentModalImage = targetImage;
+                updateModalDisplay();
+            }
+        }
+
+        function navigateModalVersion(direction) {
+            if (!currentModalImage) return;
+
+            if (direction === 'prev' && currentModalImage.currentVersion < currentModalImage.versions.length - 1) {
+                currentModalImage.currentVersion++;
+                updateModalDisplay();
+            } else if (direction === 'next' && currentModalImage.currentVersion > 0) {
+                currentModalImage.currentVersion--;
+                updateModalDisplay();
+            }
+        }
+
+        function editModalPrompt() {
+            if (!currentModalImage) return;
+
+            const promptDiv = document.getElementById('modalPrompt');
+            const currentPrompt = currentModalImage.prompt;
+
+            promptDiv.innerHTML = `
+                <textarea id="edit-modal-prompt" style="width: 100%; min-height: 80px; padding: 8px; font-size: 14px; border: 1px solid var(--primary-color); border-radius: 4px; background: var(--bg-main); color: var(--text-primary); resize: vertical;">${currentPrompt}</textarea>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button class="btn btn-primary" onclick="saveModalPrompt()" style="flex: 1;">✓ Save</button>
+                    <button class="btn btn-secondary" onclick="updateModalDisplay()" style="flex: 1;">✗ Cancel</button>
+                </div>
+            `;
+            document.getElementById('edit-modal-prompt').focus();
+        }
+
+        function saveModalPrompt() {
+            if (!currentModalImage) return;
+
+            const textarea = document.getElementById('edit-modal-prompt');
+            if (!textarea) return;
+
+            const newPrompt = textarea.value.trim();
+            if (!newPrompt) {
+                alert('Prompt không được để trống!');
+                return;
+            }
+
+            currentModalImage.prompt = newPrompt;
+            renderImageCard(currentModalImage); // Update card in gallery
+            updateModalDisplay(); // Update modal
+        }
+
+        async function regenerateModalImage() {
+            if (!currentModalImage) return;
+
+            // Close modal and regenerate in gallery
+            const imageId = currentModalImage.id;
+            closeModal();
+            await regenerateImageInPlace(imageId);
         }
 
         function closeModal(event) {
