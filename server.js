@@ -985,7 +985,28 @@ app.post('/api/veo3/set-project', async (req, res) => {
   }
 });
 
-// Create Veo3 project (tự động)
+// Get current Veo3 session (projectId & sceneId)
+app.get('/api/veo3/get-session', (req, res) => {
+  try {
+    if (veo3Session.projectId && veo3Session.sceneId) {
+      res.json({
+        success: true,
+        projectId: veo3Session.projectId,
+        sceneId: veo3Session.sceneId,
+        createdAt: veo3Session.createdAt
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'No project/scene set. Please set manually first.'
+      });
+    }
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Create Veo3 project (tự động - KHÔNG DÙNG)
 app.post('/api/veo3/create-project', async (req, res) => {
   try {
     // Nếu đã có manual project, dùng luôn

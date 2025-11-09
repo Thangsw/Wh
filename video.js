@@ -231,45 +231,30 @@ const VideoModule = (() => {
         alert(`✅ Đã load ${loaded} prompts vào timeline!`);
     }
 
-    // ==================== VEO3 PROJECT & SCENE SETUP ====================
-    async function ensureProjectAndScene() {
-        if (veo3ProjectId && veo3SceneId) {
-            console.log(`Using existing project ${veo3ProjectId} and scene ${veo3SceneId}`);
+    // ==================== VEO3 PROJECT & SCENE SETUP (Manual Only) ====================
+    async function checkProjectAndScene() {
+        // Lấy projectId/sceneId từ server (đã được set manual)
+        const response = await fetch('/api/veo3/get-session');
+        const data = await response.json();
+
+        if (data.success && data.projectId && data.sceneId) {
+            veo3ProjectId = data.projectId;
+            veo3SceneId = data.sceneId;
+            console.log(`✓ Using manual project: ${veo3ProjectId}`);
+            console.log(`✓ Using manual scene: ${veo3SceneId}`);
             return { projectId: veo3ProjectId, sceneId: veo3SceneId };
         }
 
-        // Create project
-        console.log('Creating new Veo3 project...');
-        const projectRes = await fetch('/api/veo3/create-project', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        const projectData = await projectRes.json();
-
-        if (!projectData.success) {
-            throw new Error('Failed to create project: ' + projectData.error);
-        }
-
-        veo3ProjectId = projectData.projectId;
-        console.log(`✓ Project created: ${veo3ProjectId}`);
-
-        // Create scene
-        console.log('Creating new Veo3 scene...');
-        const sceneRes = await fetch('/api/veo3/create-scene', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId: veo3ProjectId })
-        });
-        const sceneData = await sceneRes.json();
-
-        if (!sceneData.success) {
-            throw new Error('Failed to create scene: ' + sceneData.error);
-        }
-
-        veo3SceneId = sceneData.sceneId;
-        console.log(`✓ Scene created: ${veo3SceneId}`);
-
-        return { projectId: veo3ProjectId, sceneId: veo3SceneId };
+        // Chưa set manual -> báo lỗi
+        throw new Error(
+            '⚠️ Chưa set Project ID và Scene ID!\n\n' +
+            'Vui lòng:\n' +
+            '1. Tạo project tại labs.google/fx/tools/flow\n' +
+            '2. Copy URL của project\n' +
+            '3. Paste vào ô "Paste Project URL"\n' +
+            '4. Click "Set Project & Scene"\n\n' +
+            'Sau đó mới có thể gen videos!'
+        );
     }
 
     // ==================== GENERATE VIDEOS ====================
@@ -284,8 +269,8 @@ const VideoModule = (() => {
         }
 
         try {
-            // Ensure project and scene exist
-            const projectInfo = await ensureProjectAndScene();
+            // Check project and scene đã được set manual chưa
+            const projectInfo = await checkProjectAndScene();
             console.log('✓ Project and scene ready:', projectInfo);
 
             const videoLength = parseInt(document.getElementById('videoLength').value) || 8;
