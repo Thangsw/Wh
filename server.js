@@ -387,6 +387,25 @@ const editImage = async (prompt, referenceImagePath, options = {}) => {
 
     const aspectRatio = options.aspectRatio || 'IMAGE_ASPECT_RATIO_LANDSCAPE';
 
+    // Build editInput object
+    const editInput = {
+      caption: prompt,
+      userInstruction: prompt,
+      originalMediaGenerationId: originalGenerationId,
+      mediaInput: {
+        mediaCategory: 'MEDIA_CATEGORY_BOARD',
+        rawBytes: base64Image
+      }
+    };
+
+    // Only include seed if provided (API doesn't accept null)
+    if (options.seed !== undefined && options.seed !== null) {
+      editInput.seed = options.seed;
+    }
+
+    // Set safetyMode to valid enum value (API doesn't accept null)
+    editInput.safetyMode = 'SAFETY_MODE_UNSPECIFIED';
+
     const payload = {
       json: {
         clientContext: {
@@ -399,17 +418,7 @@ const editImage = async (prompt, referenceImagePath, options = {}) => {
           aspectRatio: aspectRatio
         },
         flags: {},
-        editInput: {
-          caption: prompt,
-          userInstruction: prompt,
-          seed: null,
-          safetyMode: null,
-          originalMediaGenerationId: originalGenerationId,
-          mediaInput: {
-            mediaCategory: 'MEDIA_CATEGORY_BOARD',
-            rawBytes: base64Image
-          }
-        }
+        editInput: editInput
       }
     };
 
@@ -813,13 +822,13 @@ app.post('/api/generate', async (req, res) => {
 });
 
 app.post('/api/edit', async (req, res) => {
-  const { prompt, referenceImage, aspectRatio, generationId } = req.body;
+  const { prompt, referenceImage, aspectRatio, generationId, seed } = req.body;
 
   if (!prompt || !referenceImage) {
     return res.json({ success: false, error: 'Prompt and reference image are required' });
   }
 
-  const result = await editImage(prompt, referenceImage, { aspectRatio, generationId });
+  const result = await editImage(prompt, referenceImage, { aspectRatio, generationId, seed });
   res.json(result);
 });
 

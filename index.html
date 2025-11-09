@@ -1005,6 +1005,11 @@
                     console.log(`Using generationId for reference: ${useReference.generationId.substring(0, 20)}...`);
                 }
 
+                // Pass seed if provided for reproducible edits
+                if (seed) {
+                    editPayload.seed = seed;
+                }
+
                 const res = await fetch('/api/edit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
