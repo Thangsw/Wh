@@ -722,83 +722,23 @@
                     </div>
                 </div>
 
-                <!-- Style Preset -->
-                <div class="form-group">
-                    <label>🎨 Phong Cách</label>
-                    <select id="stylePreset" onchange="handleStyleChange()">
-                        <option value="">-- Không áp dụng --</option>
-                        <option value="realistic">📷 Realistic Photo</option>
-                        <option value="anime">🎌 Anime Style</option>
-                        <option value="oil-painting">🖼️ Oil Painting</option>
-                        <option value="watercolor">💧 Watercolor</option>
-                        <option value="3d-render">🎮 3D Render</option>
-                        <option value="sketch">✏️ Pencil Sketch</option>
-                        <option value="vintage">📸 Vintage Photo</option>
-                        <option value="cyberpunk">🌃 Cyberpunk</option>
-                        <option value="fantasy">✨ Fantasy Art</option>
-                        <option value="minimalist">⚪ Minimalist</option>
-                    </select>
-                    <div class="help-text">Phong cách sẽ tự động thêm vào prompt</div>
-                </div>
-
-                <!-- Create Reference Images -->
-                <div class="reference-section" style="border: 2px solid var(--primary-color); background: rgba(26, 115, 232, 0.05);">
-                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
-                        ⭐ Tạo Ảnh Tham Chiếu
+                <!-- ═══════════════════════════════════════ -->
+                <!-- PROMPTS INPUT - PHẦN CHÍNH -->
+                <!-- ═══════════════════════════════════════ -->
+                <div class="form-group" style="border: 2px solid var(--primary-color); border-radius: 12px; padding: 16px; background: rgba(26, 115, 232, 0.05); margin-bottom: 24px;">
+                    <label style="font-size: 15px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 24px;">✍️</span>
+                        <span>Mô Tả Ảnh</span>
                     </label>
-                    <div class="help-text">Tạo nhân vật/cảnh với tên gọi. VD: "@ben đang ở trong @phongngu"</div>
-
-                    <div style="margin-top: 12px;">
-                        <input type="text" id="referenceName" placeholder="Tên gọi (VD: ben, lucy, phongngu)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 13px; margin-bottom: 8px;">
-
-                        <select id="referenceType" class="select" style="width: 100%; margin-bottom: 8px;">
-                            <option value="character">👤 Nhân Vật</option>
-                            <option value="scene">🏞️ Khung Cảnh</option>
-                        </select>
-
-                        <textarea id="referencePrompt" placeholder="Mô tả nhân vật hoặc cảnh..." style="width: 100%; min-height: 60px; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 13px; resize: vertical; margin-bottom: 8px;"></textarea>
-
-                        <button class="btn btn-primary" onclick="generateReferenceImage()" style="width: 100%;">
-                            ✨ Tạo Reference
-                        </button>
+                    <textarea id="promptsInput" placeholder="@ben đang ở trong @phongngu&#10;@lucy đi ra phòng khách&#10;@ben và @lucy chơi cùng nhau" style="min-height: 120px;"></textarea>
+                    <div class="help-text" style="margin-top: 8px;">
+                        💡 <strong>Mỗi dòng = 1 ảnh</strong><br>
+                        🔖 <strong>Dùng @tên</strong> để gọi nhân vật/cảnh đã tạo
                     </div>
                 </div>
 
-                <!-- Reference Library -->
-                <div class="reference-section" id="referenceSection">
-                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
-                        🖼️ Thư Viện Tham Chiếu
-                    </label>
-                    <div class="help-text">Dùng @tên trong prompt. VD: "@ben đang ở @phongngu"</div>
-
-                    <!-- Tabs -->
-                    <div style="display: flex; gap: 8px; margin: 12px 0;">
-                        <button class="btn btn-secondary" id="tabCharacters" onclick="switchReferenceTab('character')" style="flex: 1; font-size: 11px;">
-                            👤 Nhân Vật (<span id="countCharacters">0</span>)
-                        </button>
-                        <button class="btn btn-secondary" id="tabScenes" onclick="switchReferenceTab('scene')" style="flex: 1; font-size: 11px;">
-                            🏞️ Cảnh (<span id="countScenes">0</span>)
-                        </button>
-                    </div>
-
-                    <div id="referenceGridCharacters" class="reference-grid" style="display: none;"></div>
-                    <div id="referenceGridScenes" class="reference-grid" style="display: none;"></div>
-
-                    <button class="btn btn-secondary" onclick="uploadReferenceImage()" style="width: 100%; margin-top: 8px;">
-                        📤 Upload Từ Máy
-                    </button>
-                    <input type="file" id="referenceFileInput" accept="image/*" style="display: none;" onchange="handleReferenceFileUpload(event)">
-                </div>
-
-                <!-- Prompts Input -->
-                <div class="form-group">
-                    <label>✍️ Mô Tả (mỗi dòng = 1 ảnh)</label>
-                    <textarea id="promptsInput" placeholder="a fishing boat on the ocean&#10;modern city at night&#10;snow-covered mountain"></textarea>
-                    <div class="help-text">Nhập nhiều dòng để tạo nhiều ảnh cùng lúc</div>
-                </div>
-
-                <!-- Settings -->
-                <div class="settings-row">
+                <!-- Settings Row -->
+                <div class="settings-row" style="margin-bottom: 20px;">
                     <div class="form-group">
                         <label>📐 Tỷ Lệ</label>
                         <select id="aspectRatio">
@@ -814,23 +754,95 @@
                     </div>
                 </div>
 
-                <!-- Folder Picker -->
-                <!-- Batch Reference Options -->
-                <div class="folder-picker">
-                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
-                        🔗 Batch Reference Mode
-                    </label>
-                    <select id="batchReferenceMode" style="margin-bottom: 12px;">
+                <!-- Style & Reference Mode -->
+                <div class="form-group">
+                    <label>🎨 Phong Cách</label>
+                    <select id="stylePreset" onchange="handleStyleChange()">
+                        <option value="">-- Không áp dụng --</option>
+                        <option value="realistic">📷 Realistic Photo</option>
+                        <option value="anime">🎌 Anime Style</option>
+                        <option value="oil-painting">🖼️ Oil Painting</option>
+                        <option value="watercolor">💧 Watercolor</option>
+                        <option value="3d-render">🎮 3D Render</option>
+                        <option value="sketch">✏️ Pencil Sketch</option>
+                        <option value="vintage">📸 Vintage Photo</option>
+                        <option value="cyberpunk">🌃 Cyberpunk</option>
+                        <option value="fantasy">✨ Fantasy Art</option>
+                        <option value="minimalist">⚪ Minimalist</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>🔗 Batch Reference Mode</label>
+                    <select id="batchReferenceMode">
                         <option value="none">Không dùng reference</option>
                         <option value="first">Dùng ảnh đầu làm reference</option>
                         <option value="chain">Chain - Mỗi ảnh reference ảnh trước</option>
                     </select>
-                    <div class="help-text">
-                        - Ảnh đầu: Giữ style đồng nhất cho tất cả<br>
-                        - Chain: Tiến hóa dần từ ảnh này sang ảnh khác
+                    <div class="help-text">Chain: Tiến hóa dần, giữ mạch truyện liên tục</div>
+                </div>
+
+                <!-- Generate Button -->
+                <button class="btn btn-success" onclick="generateBatch()" id="generateBtn" style="width: 100%; padding: 14px; font-size: 15px; margin-bottom: 12px;" disabled>
+                    ✨ Tạo Ảnh
+                </button>
+
+                <div id="progressBar" class="progress-bar" style="display: none; margin-bottom: 12px;">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- CREATE REFERENCE -->
+                <!-- ═══════════════════════════════════════ -->
+                <div class="reference-section" style="border: 2px solid #10b981; background: rgba(16, 185, 129, 0.05); margin-bottom: 20px;">
+                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
+                        ⭐ Tạo Reference Mới
+                    </label>
+                    <div class="help-text">Tạo nhân vật/cảnh với tên gọi để dùng lại</div>
+
+                    <div style="margin-top: 12px;">
+                        <input type="text" id="referenceName" placeholder="Tên (VD: ben, lucy, phongngu)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 13px; margin-bottom: 8px;">
+
+                        <select id="referenceType" class="select" style="width: 100%; margin-bottom: 8px;">
+                            <option value="character">👤 Nhân Vật</option>
+                            <option value="scene">🏞️ Khung Cảnh</option>
+                        </select>
+
+                        <textarea id="referencePrompt" placeholder="Mô tả chi tiết..." style="width: 100%; min-height: 60px; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 13px; resize: vertical; margin-bottom: 8px;"></textarea>
+
+                        <button class="btn btn-success" onclick="generateReferenceImage()" style="width: 100%;">
+                            ✨ Tạo Reference
+                        </button>
                     </div>
                 </div>
 
+                <!-- Reference Library -->
+                <div class="reference-section" id="referenceSection" style="margin-bottom: 20px;">
+                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
+                        🖼️ Thư Viện Reference
+                    </label>
+                    <div class="help-text">Click 🔍 để xem, × để xóa</div>
+
+                    <!-- Tabs -->
+                    <div style="display: flex; gap: 8px; margin: 12px 0;">
+                        <button class="btn btn-secondary" id="tabCharacters" onclick="switchReferenceTab('character')" style="flex: 1; font-size: 11px;">
+                            👤 <span id="countCharacters">0</span>
+                        </button>
+                        <button class="btn btn-secondary" id="tabScenes" onclick="switchReferenceTab('scene')" style="flex: 1; font-size: 11px;">
+                            🏞️ <span id="countScenes">0</span>
+                        </button>
+                    </div>
+
+                    <div id="referenceGridCharacters" class="reference-grid" style="display: none;"></div>
+                    <div id="referenceGridScenes" class="reference-grid" style="display: none;"></div>
+
+                    <button class="btn btn-secondary" onclick="uploadReferenceImage()" style="width: 100%; margin-top: 8px;">
+                        📤 Upload
+                    </button>
+                    <input type="file" id="referenceFileInput" accept="image/*" style="display: none;" onchange="handleReferenceFileUpload(event)">
+                </div>
+
+                <!-- Folder Section -->
                 <div class="folder-picker">
                     <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
                         📁 Thư Mục Lưu
@@ -843,18 +855,9 @@
                     <div style="margin-top: 12px;">
                         <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="checkbox" id="autoDownload">
-                            Tự động tải về sau khi tạo
+                            Tự động tải về
                         </label>
                     </div>
-                </div>
-
-                <!-- Generate Button -->
-                <button class="btn btn-success" onclick="generateBatch()" id="generateBtn" style="width: 100%; padding: 14px; font-size: 15px;" disabled>
-                    ✨ Tạo Ảnh
-                </button>
-
-                <div id="progressBar" class="progress-bar" style="display: none;">
-                    <div class="progress-fill" id="progressFill"></div>
                 </div>
 
                 <div class="image-counter">
