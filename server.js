@@ -939,6 +939,256 @@ app.post('/api/logs/clear', async (req, res) => {
   }
 });
 
+// ============================================
+// VEO3 VIDEO GENERATION ENDPOINTS
+// ============================================
+
+// Veo3 state
+let veo3Session = {
+  projectId: null,
+  sceneId: null,
+  createdAt: null
+};
+
+// Create Veo3 project
+app.post('/api/veo3/create-project', async (req, res) => {
+  try {
+    log('Creating Veo3 project...');
+
+    const token = await getAccessToken();
+    const response = await axios.post(
+      'https://labs.google/fx/api/trpc/project.create',
+      { json: { toolName: 'PINHOLE' } },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Referer': 'https://labs.google/fx/vi/tools/flow',
+          'Origin': 'https://labs.google/fx'
+        }
+      }
+    );
+
+    const projectId = response.data.result.data.json.projectId;
+    veo3Session.projectId = projectId;
+    veo3Session.createdAt = Date.now();
+
+    log(`✓ Veo3 project created: ${projectId}`);
+    res.json({ success: true, projectId });
+  } catch (err) {
+    log(`✗ Create project failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Create Veo3 scene
+app.post('/api/veo3/create-scene', async (req, res) => {
+  try {
+    const { projectId } = req.body;
+    const useProjectId = projectId || veo3Session.projectId;
+
+    if (!useProjectId) {
+      return res.json({ success: false, error: 'No project ID' });
+    }
+
+    log(`Creating Veo3 scene in project ${useProjectId}...`);
+
+    const token = await getAccessToken();
+    const response = await axios.post(
+      'https://labs.google/fx/api/trpc/project.createScene',
+      { json: { projectId: useProjectId, toolName: 'PINHOLE' } },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Referer': 'https://labs.google/fx/vi/tools/flow',
+          'Origin': 'https://labs.google/fx'
+        }
+      }
+    );
+
+    const sceneId = response.data.result.data.json.sceneId;
+    veo3Session.sceneId = sceneId;
+
+    log(`✓ Veo3 scene created: ${sceneId}`);
+    res.json({ success: true, sceneId, projectId: useProjectId });
+  } catch (err) {
+    log(`✗ Create scene failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Upload image for Veo3
+app.post('/api/veo3/upload-image', async (req, res) => {
+  try {
+    const { imageBase64 } = req.body;
+
+    if (!imageBase64) {
+      return res.json({ success: false, error: 'No image provided' });
+    }
+
+    log('Uploading image to Veo3...');
+
+    const token = await getAccessToken();
+    const response = await axios.post(
+      'https://labs.google/fx/api/trpc/media.uploadImage',
+      { json: { userUploadedImage: { image: imageBase64 } } },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Referer': 'https://labs.google/fx/vi/tools/flow',
+          'Origin': 'https://labs.google/fx'
+        }
+      }
+    );
+
+    const mediaKey = response.data.result.data.json.mediaGenerationId.mediaKey;
+
+    log(`✓ Image uploaded: ${mediaKey.substring(0, 20)}...`);
+    res.json({ success: true, mediaKey });
+  } catch (err) {
+    log(`✗ Upload image failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Generate Veo3 video
+app.post('/api/veo3/generate', async (req, res) => {
+  try {
+    const {
+      prompt,
+      startImageKey,
+      endImageKey,
+      modelKey,
+      aspectRatio,
+      lengthSeconds,
+      projectId,
+      sceneId
+    } = req.body;
+
+    const useProjectId = projectId || veo3Session.projectId;
+    const useSceneId = sceneId || veo3Session.sceneId;
+
+    if (!useProjectId || !useSceneId) {
+      return res.json({ success: false, error: 'Missing project or scene ID' });
+    }
+
+    log(`Generating Veo3 video: "${prompt.substring(0, 50)}..."`);
+
+    const payload = {
+      modelKey: modelKey || 'veo_3_1_i2v_s_fast_ultra_fl',
+      prompt,
+      startImageKey,
+      aspectRatio: aspectRatio || 'VIDEO_ASPECT_RATIO_LANDSCAPE',
+      lengthSeconds: lengthSeconds || 8,
+      fps: 24,
+      projectId: useProjectId,
+      sceneId: useSceneId
+    };
+
+    if (endImageKey) {
+      payload.endImageKey = endImageKey;
+    }
+
+    const token = await getAccessToken();
+    const response = await axios.post(
+      'https://labs.google/fx/api/trpc/video.generate',
+      { json: payload },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Referer': 'https://labs.google/fx/vi/tools/flow',
+          'Origin': 'https://labs.google/fx'
+        }
+      }
+    );
+
+    const mediaGenerationId = response.data.result.data.json.mediaGenerationId;
+
+    log(`✓ Video generation started: ${mediaGenerationId.mediaKey.substring(0, 20)}...`);
+    res.json({ success: true, mediaGenerationId });
+  } catch (err) {
+    log(`✗ Generate video failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Get Veo3 generation status
+app.post('/api/veo3/status', async (req, res) => {
+  try {
+    const { mediaGenerationId } = req.body;
+
+    if (!mediaGenerationId) {
+      return res.json({ success: false, error: 'No mediaGenerationId' });
+    }
+
+    const token = await getAccessToken();
+    const response = await axios.post(
+      'https://labs.google/fx/api/trpc/video.getGenerationStatus',
+      { json: { mediaGenerationId } },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Referer': 'https://labs.google/fx/vi/tools/flow',
+          'Origin': 'https://labs.google/fx'
+        }
+      }
+    );
+
+    const status = response.data.result.data.json;
+    res.json({ success: true, status });
+  } catch (err) {
+    log(`✗ Get status failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Save Veo3 video variants
+app.post('/api/veo3/save-variants', async (req, res) => {
+  try {
+    const { variants, baseFilename } = req.body;
+
+    if (!variants || !Array.isArray(variants)) {
+      return res.json({ success: false, error: 'No variants provided' });
+    }
+
+    const VIDEO_DIR = path.join(__dirname, 'videos');
+    await fs.mkdir(VIDEO_DIR, { recursive: true });
+
+    const savedVideos = [];
+
+    for (let i = 0; i < variants.length; i++) {
+      const variant = variants[i];
+      if (!variant.videoBase64) continue;
+
+      const filename = `${baseFilename}_v${i + 1}.mp4`;
+      const filepath = path.join(VIDEO_DIR, filename);
+
+      const buffer = Buffer.from(variant.videoBase64, 'base64');
+      await fs.writeFile(filepath, buffer);
+
+      log(`✓ Saved video: ${filename}`);
+
+      savedVideos.push({
+        filename,
+        url: `/videos/${filename}`,
+        index: i
+      });
+    }
+
+    res.json({ success: true, videos: savedVideos });
+  } catch (err) {
+    log(`✗ Save variants failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Serve videos
+app.use('/videos', express.static(path.join(__dirname, 'videos')));
+
 app.listen(3002, () => {
   log('Server listening on http://localhost:3002');
   log('Open: http://localhost:3002/index.html\n');

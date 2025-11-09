@@ -7,6 +7,8 @@ const VideoModule = (() => {
     let currentVariantIndex = 0;
     let currentVariants = [];
     let videoResults = [];
+    let veo3ProjectId = null;
+    let veo3SceneId = null;
 
     // ==================== TAB SWITCHING ====================
     function switchTab(tabName, evt) {
@@ -229,6 +231,47 @@ const VideoModule = (() => {
         alert(`✅ Đã load ${loaded} prompts vào timeline!`);
     }
 
+    // ==================== VEO3 PROJECT & SCENE SETUP ====================
+    async function ensureProjectAndScene() {
+        if (veo3ProjectId && veo3SceneId) {
+            console.log(`Using existing project ${veo3ProjectId} and scene ${veo3SceneId}`);
+            return { projectId: veo3ProjectId, sceneId: veo3SceneId };
+        }
+
+        // Create project
+        console.log('Creating new Veo3 project...');
+        const projectRes = await fetch('/api/veo3/create-project', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const projectData = await projectRes.json();
+
+        if (!projectData.success) {
+            throw new Error('Failed to create project: ' + projectData.error);
+        }
+
+        veo3ProjectId = projectData.projectId;
+        console.log(`✓ Project created: ${veo3ProjectId}`);
+
+        // Create scene
+        console.log('Creating new Veo3 scene...');
+        const sceneRes = await fetch('/api/veo3/create-scene', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId: veo3ProjectId })
+        });
+        const sceneData = await sceneRes.json();
+
+        if (!sceneData.success) {
+            throw new Error('Failed to create scene: ' + sceneData.error);
+        }
+
+        veo3SceneId = sceneData.sceneId;
+        console.log(`✓ Scene created: ${veo3SceneId}`);
+
+        return { projectId: veo3ProjectId, sceneId: veo3SceneId };
+    }
+
     // ==================== GENERATE VIDEOS ====================
     async function generateAllVideos() {
         if (scenes.length === 0) {
@@ -240,30 +283,39 @@ const VideoModule = (() => {
             return;
         }
 
-        const videoLength = parseInt(document.getElementById('videoLength').value) || 8;
+        try {
+            // Ensure project and scene exist
+            const projectInfo = await ensureProjectAndScene();
+            console.log('✓ Project and scene ready:', projectInfo);
 
-        for (let i = 0; i < scenes.length; i++) {
-            const scene = scenes[i];
-            const promptField = document.getElementById('prompt_' + scene.id);
-            const prompt = promptField ? promptField.value.trim() : scene.prompt;
+            const videoLength = parseInt(document.getElementById('videoLength').value) || 8;
 
-            if (!prompt) {
-                alert(`Scene ${i + 1} chưa có prompt! Bỏ qua.`);
-                continue;
+            for (let i = 0; i < scenes.length; i++) {
+                const scene = scenes[i];
+                const promptField = document.getElementById('prompt_' + scene.id);
+                const prompt = promptField ? promptField.value.trim() : scene.prompt;
+
+                if (!prompt) {
+                    alert(`Scene ${i + 1} chưa có prompt! Bỏ qua.`);
+                    continue;
+                }
+
+                try {
+                    await generateSingleVideo(scene, prompt, videoLength, i, projectInfo);
+                } catch (err) {
+                    console.error('Error generating video:', err);
+                    alert(`Lỗi scene ${i + 1}: ${err.message}`);
+                }
             }
 
-            try {
-                await generateSingleVideo(scene, prompt, videoLength, i);
-            } catch (err) {
-                console.error('Error generating video:', err);
-                alert(`Lỗi scene ${i + 1}: ${err.message}`);
-            }
+            alert('✅ Hoàn thành tất cả videos!');
+        } catch (err) {
+            console.error('Setup error:', err);
+            alert(`Lỗi setup: ${err.message}`);
         }
-
-        alert('✅ Hoàn thành tất cả videos!');
     }
 
-    async function generateSingleVideo(scene, prompt, lengthSeconds, sceneIndex) {
+    async function generateSingleVideo(scene, prompt, lengthSeconds, sceneIndex, projectInfo) {
         console.log(`Generating scene ${sceneIndex + 1}:`, prompt);
 
         const sceneContainer = document.getElementById('videoScenes');
@@ -282,7 +334,7 @@ const VideoModule = (() => {
         try {
             const img1Base64 = await imageToBase64(scene.img1.imageUrl);
             progressDiv.querySelector('p').textContent = 'Đang upload ảnh 1...';
-            
+
             const uploadRes1 = await fetch('/api/veo3/upload-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -306,14 +358,16 @@ const VideoModule = (() => {
             }
 
             progressDiv.querySelector('p').textContent = 'Đang gen 2 video variants...';
-            
+
             const genPayload = {
                 prompt: prompt,
                 startImageKey: upload1.mediaKey,
                 endImageKey: img2Key,
                 modelKey: scene.extend ? 'veo_3_1_extend_fast_ultra' : 'veo_3_1_i2v_s_fast_ultra_fl',
                 aspectRatio: 'VIDEO_ASPECT_RATIO_LANDSCAPE',
-                lengthSeconds: lengthSeconds
+                lengthSeconds: lengthSeconds,
+                projectId: projectInfo.projectId,
+                sceneId: projectInfo.sceneId
             };
 
             const genRes = await fetch('/api/veo3/generate', {
