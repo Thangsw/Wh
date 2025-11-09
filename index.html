@@ -380,6 +380,7 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             transition: all 0.3s;
             border: 1px solid var(--border-color);
+            position: relative;
         }
 
         .image-card:hover {
@@ -779,6 +780,10 @@
         let currentModalImage = null;
         let referenceImage = null;
 
+        // Batch reference chain: tracks which image references which
+        // Format: { imageId: { referenceId, generationId } }
+        let batchReferenceChain = {};
+
         // Style presets
         const stylePresets = {
             'realistic': 'professional photography, highly detailed, realistic, 8k resolution',
@@ -952,7 +957,22 @@
                     removeLoadingCard(loadingId);
 
                     if (result.success) {
-                        addImageToGallery(result.imageUrl, prompts[i], result.seed, result.generationId);
+                        // Add image with batch metadata
+                        const imageId = addImageToGallery(result.imageUrl, prompts[i], result.seed, result.generationId, i);
+
+                        // Track reference chain for this batch
+                        if (currentReference) {
+                            // Find the referenced image
+                            const refImage = images.find(img =>
+                                img.versions[img.currentVersion].imageUrl === currentReference.imageUrl
+                            );
+                            if (refImage) {
+                                batchReferenceChain[imageId] = {
+                                    referenceId: refImage.id,
+                                    generationId: currentReference.generationId
+                                };
+                            }
+                        }
 
                         // Store for batch reference
                         if (i === 0) {
@@ -1052,6 +1072,81 @@
             }
         }
 
+        async function regenerateImageInPlace(imageId) {
+            const image = images.find(img => img.id === imageId);
+            if (!image) return;
+
+            const loadingId = `loading-regen-${Date.now()}`;
+            addLoadingCard(loadingId, image.prompt);
+
+            try {
+                const aspectRatio = document.getElementById('aspectRatio').value;
+                const currentVer = image.versions[image.currentVersion];
+
+                // Determine reference: check if this image has a reference in batch chain
+                let referenceToUse = null;
+                const chainInfo = batchReferenceChain[imageId];
+
+                if (chainInfo) {
+                    // This image was part of a batch and has a reference
+                    const refImage = images.find(img => img.id === chainInfo.referenceId);
+                    if (refImage) {
+                        const refVer = refImage.versions[refImage.currentVersion];
+                        referenceToUse = {
+                            imageUrl: refVer.imageUrl,
+                            generationId: refVer.generationId
+                        };
+                        console.log(`Regenerating with reference to image #${refImage.batchIndex + 1}`);
+                    }
+                }
+
+                const result = await generateSingleWithReference(
+                    image.prompt,
+                    aspectRatio,
+                    null, // Let API generate new seed
+                    referenceToUse
+                );
+
+                removeLoadingCard(loadingId);
+
+                if (result.success) {
+                    // Add new version to this image (prepend to versions array)
+                    image.versions.unshift({
+                        imageUrl: result.imageUrl,
+                        generationId: result.generationId,
+                        seed: result.seed,
+                        timestamp: Date.now()
+                    });
+
+                    // Set current version to newest (index 0)
+                    image.currentVersion = 0;
+
+                    // Re-render the card
+                    renderImageCard(image);
+
+                    console.log(`Added new version. Total versions: ${image.versions.length}`);
+                } else {
+                    alert(`Lỗi: ${result.error}`);
+                }
+            } catch (err) {
+                removeLoadingCard(loadingId);
+                console.error('Regeneration error:', err);
+            }
+        }
+
+        function undoVersion(imageId) {
+            const image = images.find(img => img.id === imageId);
+            if (!image) return;
+
+            // Move to older version
+            if (image.currentVersion < image.versions.length - 1) {
+                image.currentVersion++;
+                renderImageCard(image);
+                console.log(`Undo to version ${image.versions.length - image.currentVersion}/${image.versions.length}`);
+            }
+        }
+
+        // Legacy regenerateImage for backward compatibility
         async function regenerateImage(prompt, aspectRatio, seed) {
             const loadingId = `loading-regen-${Date.now()}`;
             addLoadingCard(loadingId, prompt);
@@ -1093,35 +1188,102 @@
             if (card) card.remove();
         }
 
-        function addImageToGallery(imageUrl, prompt, seed, generationId) {
-            const image = { imageUrl, prompt, seed, generationId, id: Date.now() };
-            images.unshift(image);
+        function addImageToGallery(imageUrl, prompt, seed, generationId, batchIndex = null) {
+            const imageId = Date.now();
 
+            // Create image object with version history
+            const image = {
+                id: imageId,
+                prompt: prompt,
+                batchIndex: batchIndex,
+                currentVersion: 0,
+                versions: [
+                    {
+                        imageUrl: imageUrl,
+                        generationId: generationId,
+                        seed: seed,
+                        timestamp: Date.now()
+                    }
+                ]
+            };
+
+            images.unshift(image);
+            renderImageCard(image);
+            return imageId;
+        }
+
+        function renderImageCard(image) {
             const gallery = document.getElementById('gallery');
+            const emptyState = gallery.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            // Remove existing card if any
+            const existingCard = document.getElementById(`card-${image.id}`);
+            if (existingCard) existingCard.remove();
+
+            const currentVer = image.versions[image.currentVersion];
+            const hasHistory = image.versions.length > 1;
+            const canUndo = image.currentVersion < image.versions.length - 1;
+
             const card = document.createElement('div');
             card.className = 'image-card';
+            card.id = `card-${image.id}`;
+
+            // Add version indicator if has history
+            const versionBadge = hasHistory ?
+                `<div style="position: absolute; top: 8px; right: 8px; background: rgba(26,115,232,0.9); color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">
+                    v${image.versions.length - image.currentVersion}/${image.versions.length}
+                </div>` : '';
+
             card.innerHTML = `
-                <img src="${imageUrl}" alt="${prompt}" onclick="openModal({id: ${image.id}})">
+                ${versionBadge}
+                <img src="${currentVer.imageUrl}" alt="${image.prompt}" onclick="openModal({id: ${image.id}})">
                 <div class="image-info">
-                    <div class="image-prompt">${prompt}</div>
-                    <div class="image-seed">Seed: ${seed || 'auto'}</div>
+                    <div class="image-prompt">${image.prompt}</div>
+                    <div class="image-seed">Seed: ${currentVer.seed || 'auto'}${image.batchIndex !== null ? ` | Batch #${image.batchIndex + 1}` : ''}</div>
                     <div class="image-actions">
-                        <button class="btn-icon" onclick="setReferenceImage('${imageUrl}', '${prompt.replace(/'/g, "\\'")}', ${seed}, '${generationId || ''}')" title="Dùng làm tham chiếu">
+                        <button class="btn-icon" onclick="setReferenceImage('${currentVer.imageUrl}', '${image.prompt.replace(/'/g, "\\'")}', ${currentVer.seed}, '${currentVer.generationId || ''}')" title="Dùng làm tham chiếu">
                             🖼️ Ref
                         </button>
-                        <button class="btn-icon" onclick="regenerateImage('${prompt.replace(/'/g, "\\'")}', '${document.getElementById('aspectRatio').value}', ${seed})" title="Tạo lại">
+                        <button class="btn-icon" onclick="regenerateImageInPlace(${image.id})" title="Tạo lại (thay thế)">
                             🔄 Regen
                         </button>
-                        <button class="btn-icon" onclick="downloadImage('${imageUrl}', '${prompt.replace(/'/g, "\\'")}', ${seed})" title="Tải về">
-                            📥 Download
+                        ${canUndo ? `<button class="btn-icon active" onclick="undoVersion(${image.id})" title="Quay lại version trước">
+                            ↩️ Undo
+                        </button>` : ''}
+                        <button class="btn-icon" onclick="downloadImage('${currentVer.imageUrl}', '${image.prompt.replace(/'/g, "\\'")}', ${currentVer.seed})" title="Tải về">
+                            📥
                         </button>
                         <button class="btn-icon" onclick="deleteImage(${image.id})" title="Xóa">
-                            🗑️ Delete
+                            🗑️
                         </button>
                     </div>
                 </div>
             `;
-            gallery.insertBefore(card, gallery.firstChild);
+
+            // Insert at correct position based on batchIndex
+            if (image.batchIndex !== null) {
+                // Find correct position in gallery
+                const cards = Array.from(gallery.querySelectorAll('.image-card'));
+                let inserted = false;
+
+                for (let i = 0; i < cards.length; i++) {
+                    const cardId = parseInt(cards[i].id.replace('card-', ''));
+                    const existingImg = images.find(img => img.id === cardId);
+
+                    if (existingImg && existingImg.batchIndex !== null && existingImg.batchIndex > image.batchIndex) {
+                        gallery.insertBefore(card, cards[i]);
+                        inserted = true;
+                        break;
+                    }
+                }
+
+                if (!inserted) {
+                    gallery.appendChild(card);
+                }
+            } else {
+                gallery.insertBefore(card, gallery.firstChild);
+            }
         }
 
         function deleteImage(id) {
@@ -1152,32 +1314,7 @@
                 return;
             }
 
-            images.forEach(img => {
-                const card = document.createElement('div');
-                card.className = 'image-card';
-                card.innerHTML = `
-                    <img src="${img.imageUrl}" alt="${img.prompt}" onclick="openModal({id: ${img.id}})">
-                    <div class="image-info">
-                        <div class="image-prompt">${img.prompt}</div>
-                        <div class="image-seed">Seed: ${img.seed || 'auto'}</div>
-                        <div class="image-actions">
-                            <button class="btn-icon" onclick="setReferenceImage('${img.imageUrl}', '${img.prompt.replace(/'/g, "\\'")}', ${img.seed}, '${img.generationId || ''}')" title="Dùng làm tham chiếu">
-                                🖼️ Ref
-                            </button>
-                            <button class="btn-icon" onclick="regenerateImage('${img.prompt.replace(/'/g, "\\'")}', '${document.getElementById('aspectRatio').value}', ${img.seed})" title="Tạo lại">
-                                🔄 Regen
-                            </button>
-                            <button class="btn-icon" onclick="downloadImage('${img.imageUrl}', '${img.prompt.replace(/'/g, "\\'")}', ${img.seed})" title="Tải về">
-                                📥 Download
-                            </button>
-                            <button class="btn-icon" onclick="deleteImage(${img.id})" title="Xóa">
-                                🗑️ Delete
-                            </button>
-                        </div>
-                    </div>
-                `;
-                gallery.appendChild(card);
-            });
+            images.forEach(img => renderImageCard(img));
         }
 
         function updateImageCount() {
@@ -1190,8 +1327,12 @@
             if (!image) return;
 
             currentModalImage = image;
-            document.getElementById('modalImage').src = image.imageUrl;
-            document.getElementById('modalPrompt').textContent = `"${image.prompt}" (Seed: ${image.seed || 'auto'})`;
+            const currentVer = image.versions[image.currentVersion];
+            const versionInfo = image.versions.length > 1 ?
+                ` | v${image.versions.length - image.currentVersion}/${image.versions.length}` : '';
+
+            document.getElementById('modalImage').src = currentVer.imageUrl;
+            document.getElementById('modalPrompt').textContent = `"${image.prompt}" (Seed: ${currentVer.seed || 'auto'}${versionInfo})`;
             document.getElementById('imageModal').classList.add('active');
         }
 
@@ -1204,7 +1345,8 @@
 
         function downloadCurrentImage() {
             if (currentModalImage) {
-                downloadImage(currentModalImage.imageUrl, currentModalImage.prompt, currentModalImage.seed);
+                const currentVer = currentModalImage.versions[currentModalImage.currentVersion];
+                downloadImage(currentVer.imageUrl, currentModalImage.prompt, currentVer.seed);
             }
         }
 
