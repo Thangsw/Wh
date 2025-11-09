@@ -746,9 +746,11 @@
                     <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
                         ⭐ Tạo Ảnh Tham Chiếu
                     </label>
-                    <div class="help-text">Tạo nhân vật hoặc cảnh để dùng làm reference</div>
+                    <div class="help-text">Tạo nhân vật/cảnh với tên gọi. VD: "@ben đang ở trong @phongngu"</div>
 
                     <div style="margin-top: 12px;">
+                        <input type="text" id="referenceName" placeholder="Tên gọi (VD: ben, lucy, phongngu)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 13px; margin-bottom: 8px;">
+
                         <select id="referenceType" class="select" style="width: 100%; margin-bottom: 8px;">
                             <option value="character">👤 Nhân Vật</option>
                             <option value="scene">🏞️ Khung Cảnh</option>
@@ -762,23 +764,30 @@
                     </div>
                 </div>
 
-                <!-- Reference Images -->
+                <!-- Reference Library -->
                 <div class="reference-section" id="referenceSection">
                     <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
-                        🖼️ Ảnh Tham Chiếu (<span id="referenceCount">0</span>)
+                        🖼️ Thư Viện Tham Chiếu
                     </label>
-                    <div class="help-text">Chọn nhiều ảnh để làm tham chiếu (từ thư viện hoặc upload)</div>
+                    <div class="help-text">Dùng @tên trong prompt. VD: "@ben đang ở @phongngu"</div>
 
-                    <button class="btn btn-secondary" onclick="uploadReferenceImage()" style="width: 100%; margin-bottom: 12px;">
-                        📤 Upload Ảnh Từ Máy
+                    <!-- Tabs -->
+                    <div style="display: flex; gap: 8px; margin: 12px 0;">
+                        <button class="btn btn-secondary" id="tabCharacters" onclick="switchReferenceTab('character')" style="flex: 1; font-size: 11px;">
+                            👤 Nhân Vật (<span id="countCharacters">0</span>)
+                        </button>
+                        <button class="btn btn-secondary" id="tabScenes" onclick="switchReferenceTab('scene')" style="flex: 1; font-size: 11px;">
+                            🏞️ Cảnh (<span id="countScenes">0</span>)
+                        </button>
+                    </div>
+
+                    <div id="referenceGridCharacters" class="reference-grid" style="display: none;"></div>
+                    <div id="referenceGridScenes" class="reference-grid" style="display: none;"></div>
+
+                    <button class="btn btn-secondary" onclick="uploadReferenceImage()" style="width: 100%; margin-top: 8px;">
+                        📤 Upload Từ Máy
                     </button>
                     <input type="file" id="referenceFileInput" accept="image/*" style="display: none;" onchange="handleReferenceFileUpload(event)">
-
-                    <div id="referenceGrid" class="reference-grid"></div>
-
-                    <button class="btn btn-secondary" onclick="clearAllReferences()" id="clearReferencesBtn" style="width: 100%; margin-top: 8px; display: none;">
-                        ✕ Xóa Tất Cả
-                    </button>
                 </div>
 
                 <!-- Prompts Input -->
@@ -912,8 +921,9 @@
                     <button class="btn-icon" onclick="navigateModalVersion('next')" id="modalVerNext">→</button>
                 </div>
 
-                <div class="modal-actions">
-                    <button class="btn btn-primary" onclick="regenerateModalImage()">🔄 Regen</button>
+                <div class="modal-actions" id="modalActions">
+                    <button class="btn btn-primary" onclick="regenerateModalImage()" id="regenNormalBtn">🔄 Regen</button>
+                    <button class="btn btn-primary" onclick="regenerateReference()" id="regenRefBtn" style="display: none;">🔄 Regen Reference</button>
                     <button class="btn btn-primary" onclick="downloadCurrentImage()">📥 Tải về</button>
                     <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
                 </div>
@@ -926,7 +936,11 @@
         let images = [];
         let downloadFolderHandle = null;
         let currentModalImage = null;
-        let referenceImages = []; // Array of reference images
+        let namedReferences = {
+            characters: {}, // { name: { imageUrl, prompt, seed, generationId } }
+            scenes: {}      // { name: { imageUrl, prompt, seed, generationId } }
+        };
+        let currentReferenceTab = 'character';
 
         // Batch reference chain: tracks which image references which
         // Format: { imageId: { referenceId, generationId } }
@@ -1014,59 +1028,132 @@
         }
 
         // Reference Image
-        function setReferenceImage(imageUrl, prompt, seed, generationId) {
-            // Add to reference images array
-            addReferenceImage({ imageUrl, prompt, seed, generationId });
+        // Named References System
+        function switchReferenceTab(type) {
+            currentReferenceTab = type;
+
+            // Update tab buttons
+            document.getElementById('tabCharacters').className = type === 'character' ? 'btn btn-primary' : 'btn btn-secondary';
+            document.getElementById('tabScenes').className = type === 'scene' ? 'btn btn-primary' : 'btn btn-secondary';
+
+            // Show/hide grids
+            document.getElementById('referenceGridCharacters').style.display = type === 'character' ? 'grid' : 'none';
+            document.getElementById('referenceGridScenes').style.display = type === 'scene' ? 'grid' : 'none';
         }
 
-        function addReferenceImage(refData) {
-            // Check if already exists
-            const exists = referenceImages.some(ref => ref.imageUrl === refData.imageUrl);
-            if (exists) {
-                alert('Ảnh này đã có trong tham chiếu!');
+        function updateReferenceLibrary() {
+            const charCount = Object.keys(namedReferences.characters).length;
+            const sceneCount = Object.keys(namedReferences.scenes).length;
+
+            document.getElementById('countCharacters').textContent = charCount;
+            document.getElementById('countScenes').textContent = sceneCount;
+
+            // Render characters grid
+            const charGrid = document.getElementById('referenceGridCharacters');
+            charGrid.innerHTML = Object.entries(namedReferences.characters).map(([name, ref]) => `
+                <div class="reference-item">
+                    <img src="${ref.imageUrl}" alt="@${name}">
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 4px; font-size: 10px; text-align: center;">
+                        @${name}
+                    </div>
+                    <button class="reference-item-remove" onclick="deleteReference('characters', '${name}')" title="Xóa">×</button>
+                    <button onclick="viewReference('characters', '${name}')" style="position: absolute; top: 4px; left: 4px; background: rgba(26,115,232,0.9); color: white; border: none; width: 24px; height: 24px; border-radius: 50%; font-size: 14px; cursor: pointer;">🔍</button>
+                </div>
+            `).join('');
+
+            // Render scenes grid
+            const sceneGrid = document.getElementById('referenceGridScenes');
+            sceneGrid.innerHTML = Object.entries(namedReferences.scenes).map(([name, ref]) => `
+                <div class="reference-item">
+                    <img src="${ref.imageUrl}" alt="@${name}">
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 4px; font-size: 10px; text-align: center;">
+                        @${name}
+                    </div>
+                    <button class="reference-item-remove" onclick="deleteReference('scenes', '${name}')" title="Xóa">×</button>
+                    <button onclick="viewReference('scenes', '${name}')" style="position: absolute; top: 4px; left: 4px; background: rgba(26,115,232,0.9); color: white; border: none; width: 24px; height: 24px; border-radius: 50%; font-size: 14px; cursor: pointer;">🔍</button>
+                </div>
+            `).join('');
+
+            // Show default tab
+            if (charCount > 0) {
+                switchReferenceTab('character');
+            } else if (sceneCount > 0) {
+                switchReferenceTab('scene');
+            }
+        }
+
+        function deleteReference(category, name) {
+            if (!confirm(`Xóa @${name}?`)) return;
+            delete namedReferences[category][name];
+            updateReferenceLibrary();
+        }
+
+        function viewReference(category, name) {
+            const ref = namedReferences[category][name];
+            if (!ref) return;
+
+            // Open modal to view and regenerate
+            const modal = document.getElementById('imageModal');
+            document.getElementById('modalImage').src = ref.imageUrl;
+            document.getElementById('modalPrompt').textContent = `"@${name}" - ${ref.prompt}`;
+            document.getElementById('modalSeed').textContent = `Seed: ${ref.seed || 'auto'}`;
+            document.getElementById('modalVersionNav').style.display = 'none';
+            document.getElementById('modalPrevBatch').style.display = 'none';
+            document.getElementById('modalNextBatch').style.display = 'none';
+
+            // Show reference regen button
+            document.getElementById('regenNormalBtn').style.display = 'none';
+            document.getElementById('regenRefBtn').style.display = 'inline-block';
+
+            modal.classList.add('active');
+
+            // Store reference info for regen
+            window.currentViewingReference = { category, name, ref };
+        }
+
+        async function regenerateReference() {
+            if (!window.currentViewingReference) {
+                alert('Không có reference để gen lại!');
                 return;
             }
 
-            referenceImages.push(refData);
-            updateReferenceGrid();
-        }
+            const { category, name, ref } = window.currentViewingReference;
 
-        function removeReferenceImage(index) {
-            referenceImages.splice(index, 1);
-            updateReferenceGrid();
-        }
+            const loadingId = `loading-regen-ref-${Date.now()}`;
+            addLoadingCard(loadingId, `Tạo lại @${name}`);
+            closeModal();
 
-        function clearAllReferences() {
-            referenceImages = [];
-            updateReferenceGrid();
-        }
+            try {
+                const aspectRatio = document.getElementById('aspectRatio').value;
+                const result = await generateSingleWithReference(ref.prompt, aspectRatio, null, null);
 
-        function updateReferenceGrid() {
-            const grid = document.getElementById('referenceGrid');
-            const count = document.getElementById('referenceCount');
-            const clearBtn = document.getElementById('clearReferencesBtn');
-            const section = document.getElementById('referenceSection');
+                removeLoadingCard(loadingId);
 
-            count.textContent = referenceImages.length;
+                if (result.success) {
+                    namedReferences[category][name] = {
+                        imageUrl: result.imageUrl,
+                        prompt: ref.prompt,
+                        seed: result.seed,
+                        generationId: result.generationId,
+                        name: name
+                    };
 
-            if (referenceImages.length > 0) {
-                section.classList.add('has-image');
-                clearBtn.style.display = 'block';
-
-                grid.innerHTML = referenceImages.map((ref, index) => `
-                    <div class="reference-item">
-                        <img src="${ref.imageUrl}" alt="Reference ${index + 1}">
-                        <button class="reference-item-remove" onclick="removeReferenceImage(${index})" title="Xóa">×</button>
-                    </div>
-                `).join('');
-            } else {
-                section.classList.remove('has-image');
-                clearBtn.style.display = 'none';
-                grid.innerHTML = '';
+                    updateReferenceLibrary();
+                    alert(`✅ Đã tạo lại @${name}!`);
+                } else {
+                    alert(`Lỗi: ${result.error}`);
+                }
+            } catch (err) {
+                removeLoadingCard(loadingId);
+                console.error('Regenerate reference error:', err);
             }
         }
 
         function uploadReferenceImage() {
+            const name = prompt('Tên cho reference này:');
+            if (!name) return;
+
+            document.getElementById('referenceFileInput').dataset.tempName = name.toLowerCase();
             document.getElementById('referenceFileInput').click();
         }
 
@@ -1074,26 +1161,56 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            // Read file as base64
+            const name = event.target.dataset.tempName || 'uploaded';
             const reader = new FileReader();
+
             reader.onload = (e) => {
-                const imageUrl = e.target.result; // base64 data URL
-                addReferenceImage({
-                    imageUrl: imageUrl,
+                namedReferences.scenes[name] = {
+                    imageUrl: e.target.result,
                     prompt: file.name,
                     seed: 'uploaded',
-                    generationId: null
-                });
-            };
-            reader.readAsDataURL(file);
+                    generationId: null,
+                    name: name
+                };
 
-            // Clear input
+                updateReferenceLibrary();
+            };
+
+            reader.readAsDataURL(file);
             event.target.value = '';
         }
 
-        // Legacy function for backward compatibility
+        // Parse @mentions in prompt and resolve to reference images
+        function parsePromptWithReferences(prompt) {
+            const mentions = prompt.match(/@(\w+)/g);
+            if (!mentions) return { prompt, references: [] };
+
+            const references = [];
+            let parsedPrompt = prompt;
+
+            mentions.forEach(mention => {
+                const name = mention.substring(1).toLowerCase();
+
+                // Check in characters first, then scenes
+                let ref = namedReferences.characters[name] || namedReferences.scenes[name];
+
+                if (ref) {
+                    references.push(ref);
+                    // Replace @name with actual description for API
+                    parsedPrompt = parsedPrompt.replace(mention, ref.prompt);
+                }
+            });
+
+            return { prompt: parsedPrompt, references };
+        }
+
+        // Legacy compatibility
+        function setReferenceImage(imageUrl, prompt, seed, generationId) {
+            // Not used anymore with named system
+        }
+
         function clearReference() {
-            clearAllReferences();
+            // Not used anymore
         }
 
         // Folder Selection
@@ -1121,17 +1238,29 @@
 
         // Generate Reference Image
         async function generateReferenceImage() {
+            const name = document.getElementById('referenceName').value.trim().toLowerCase();
             const prompt = document.getElementById('referencePrompt').value.trim();
+            const refType = document.getElementById('referenceType').value;
+
+            if (!name) {
+                alert('Vui lòng nhập tên gọi!');
+                return;
+            }
+
             if (!prompt) {
                 alert('Vui lòng nhập mô tả!');
                 return;
             }
 
-            const refType = document.getElementById('referenceType').value;
+            // Check if name already exists
+            const category = refType === 'character' ? 'characters' : 'scenes';
+            if (namedReferences[category][name]) {
+                if (!confirm(`"@${name}" đã tồn tại. Tạo lại?`)) return;
+            }
+
             const typeEmoji = refType === 'character' ? '👤' : '🏞️';
             const loadingId = `loading-ref-${Date.now()}`;
-
-            addLoadingCard(loadingId, `${typeEmoji} ${prompt}`);
+            addLoadingCard(loadingId, `${typeEmoji} @${name}`);
 
             try {
                 const aspectRatio = document.getElementById('aspectRatio').value;
@@ -1140,19 +1269,23 @@
                 removeLoadingCard(loadingId);
 
                 if (result.success) {
-                    // Add to reference images
-                    addReferenceImage({
+                    // Save to named references
+                    namedReferences[category][name] = {
                         imageUrl: result.imageUrl,
                         prompt: prompt,
                         seed: result.seed,
                         generationId: result.generationId,
-                        refType: refType
-                    });
+                        name: name
+                    };
 
-                    // Clear input
+                    // Clear inputs
+                    document.getElementById('referenceName').value = '';
                     document.getElementById('referencePrompt').value = '';
 
-                    alert(`✅ Đã tạo ${refType === 'character' ? 'nhân vật' : 'khung cảnh'} reference!`);
+                    // Update UI
+                    updateReferenceLibrary();
+
+                    alert(`✅ Đã tạo @${name}!`);
                 } else {
                     alert(`Lỗi: ${result.error}`);
                 }
@@ -1292,8 +1425,8 @@
             const payload = { prompt, aspectRatio };
             if (seed) payload.seed = seed;
 
-            // Use provided reference or fall back to global reference (first image in array)
-            const useReference = refImage || (referenceImages.length > 0 ? referenceImages[0] : null);
+            // Use provided reference (no default anymore with named system)
+            const useReference = refImage;
 
             if (useReference) {
                 const editPayload = {
@@ -1853,6 +1986,12 @@
             if (!image) return;
 
             currentModalImage = image;
+            window.currentViewingReference = null;
+
+            // Show normal regen button
+            document.getElementById('regenNormalBtn').style.display = 'inline-block';
+            document.getElementById('regenRefBtn').style.display = 'none';
+
             updateModalDisplay();
             document.getElementById('imageModal').classList.add('active');
         }
