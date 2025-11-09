@@ -1079,29 +1079,41 @@
 
             // Render characters grid
             const charGrid = document.getElementById('referenceGridCharacters');
-            charGrid.innerHTML = Object.entries(namedReferences.characters).map(([name, ref]) => `
-                <div class="reference-item">
-                    <img src="${ref.imageUrl}" alt="@${name}">
-                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 4px; font-size: 10px; text-align: center;">
-                        @${name}
+            charGrid.innerHTML = Object.entries(namedReferences.characters).map(([name, ref]) => {
+                const hasHistory = ref.versions && ref.versions.length > 1;
+                const versionBadge = hasHistory ?
+                    `<div style="position: absolute; top: 4px; right: 4px; background: rgba(26,115,232,0.9); color: white; padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600;">v${ref.versions.length}</div>` : '';
+                return `
+                    <div class="reference-item">
+                        ${versionBadge}
+                        <img src="${ref.imageUrl}" alt="@${name}">
+                        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 4px; font-size: 10px; text-align: center;">
+                            @${name}
+                        </div>
+                        <button class="reference-item-remove" onclick="deleteReference('characters', '${name}')" title="Xóa">×</button>
+                        <button onclick="viewReference('characters', '${name}')" style="position: absolute; top: 4px; left: 4px; background: rgba(26,115,232,0.9); color: white; border: none; width: 24px; height: 24px; border-radius: 50%; font-size: 14px; cursor: pointer;">🔍</button>
                     </div>
-                    <button class="reference-item-remove" onclick="deleteReference('characters', '${name}')" title="Xóa">×</button>
-                    <button onclick="viewReference('characters', '${name}')" style="position: absolute; top: 4px; left: 4px; background: rgba(26,115,232,0.9); color: white; border: none; width: 24px; height: 24px; border-radius: 50%; font-size: 14px; cursor: pointer;">🔍</button>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             // Render scenes grid
             const sceneGrid = document.getElementById('referenceGridScenes');
-            sceneGrid.innerHTML = Object.entries(namedReferences.scenes).map(([name, ref]) => `
-                <div class="reference-item">
-                    <img src="${ref.imageUrl}" alt="@${name}">
-                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 4px; font-size: 10px; text-align: center;">
-                        @${name}
+            sceneGrid.innerHTML = Object.entries(namedReferences.scenes).map(([name, ref]) => {
+                const hasHistory = ref.versions && ref.versions.length > 1;
+                const versionBadge = hasHistory ?
+                    `<div style="position: absolute; top: 4px; right: 4px; background: rgba(26,115,232,0.9); color: white; padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600;">v${ref.versions.length}</div>` : '';
+                return `
+                    <div class="reference-item">
+                        ${versionBadge}
+                        <img src="${ref.imageUrl}" alt="@${name}">
+                        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 4px; font-size: 10px; text-align: center;">
+                            @${name}
+                        </div>
+                        <button class="reference-item-remove" onclick="deleteReference('scenes', '${name}')" title="Xóa">×</button>
+                        <button onclick="viewReference('scenes', '${name}')" style="position: absolute; top: 4px; left: 4px; background: rgba(26,115,232,0.9); color: white; border: none; width: 24px; height: 24px; border-radius: 50%; font-size: 14px; cursor: pointer;">🔍</button>
                     </div>
-                    <button class="reference-item-remove" onclick="deleteReference('scenes', '${name}')" title="Xóa">×</button>
-                    <button onclick="viewReference('scenes', '${name}')" style="position: absolute; top: 4px; left: 4px; background: rgba(26,115,232,0.9); color: white; border: none; width: 24px; height: 24px; border-radius: 50%; font-size: 14px; cursor: pointer;">🔍</button>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             // Show default tab
             if (charCount > 0) {
@@ -1121,9 +1133,24 @@
             const ref = namedReferences[category][name];
             if (!ref) return;
 
+            // Migrate to version history if needed
+            if (!ref.versions) {
+                ref.versions = [{
+                    imageUrl: ref.imageUrl,
+                    generationId: ref.generationId,
+                    seed: ref.seed,
+                    timestamp: Date.now()
+                }];
+                ref.currentVersion = 0;
+            }
+
+            const currentVer = ref.versions[ref.currentVersion || 0];
+            const hasHistory = ref.versions.length > 1;
+            const currentVersionNum = ref.versions.length - (ref.currentVersion || 0);
+
             // Open modal to view and regenerate
             const modal = document.getElementById('imageModal');
-            document.getElementById('modalImage').src = ref.imageUrl;
+            document.getElementById('modalImage').src = currentVer.imageUrl;
 
             // Create editable interface for reference
             const promptDiv = document.getElementById('modalPrompt');
@@ -1144,8 +1171,19 @@
                 </div>
             `;
 
-            document.getElementById('modalSeed').textContent = `Seed: ${ref.seed || 'auto'} | ${category === 'characters' ? '👤 Nhân Vật' : '🏞️ Khung Cảnh'}`;
-            document.getElementById('modalVersionNav').style.display = 'none';
+            document.getElementById('modalSeed').textContent = `Seed: ${currentVer.seed || 'auto'} | ${category === 'characters' ? '👤 Nhân Vật' : '🏞️ Khung Cảnh'}`;
+
+            // Show version navigation if has history
+            const versionNav = document.getElementById('modalVersionNav');
+            if (hasHistory) {
+                versionNav.style.display = 'block';
+                document.getElementById('modalVersionInfo').textContent = `[${currentVersionNum}/${ref.versions.length}]`;
+                document.getElementById('modalVerPrev').disabled = (ref.currentVersion || 0) >= ref.versions.length - 1;
+                document.getElementById('modalVerNext').disabled = (ref.currentVersion || 0) <= 0;
+            } else {
+                versionNav.style.display = 'none';
+            }
+
             document.getElementById('modalPrevBatch').style.display = 'none';
             document.getElementById('modalNextBatch').style.display = 'none';
 
@@ -1157,6 +1195,25 @@
 
             // Store reference info for regen and editing
             window.currentViewingReference = { category, name, ref };
+        }
+
+        function navigateReferenceVersion(direction) {
+            if (!window.currentViewingReference) return;
+            const { category, name, ref } = window.currentViewingReference;
+
+            if (!ref.versions) return;
+
+            const currentVer = ref.currentVersion || 0;
+
+            if (direction === 'prev' && currentVer < ref.versions.length - 1) {
+                ref.currentVersion = currentVer + 1;
+                namedReferences[category][name] = ref;
+                viewReference(category, name);
+            } else if (direction === 'next' && currentVer > 0) {
+                ref.currentVersion = currentVer - 1;
+                namedReferences[category][name] = ref;
+                viewReference(category, name);
+            }
         }
 
         function editReferenceName() {
@@ -1250,31 +1307,87 @@
 
             const { category, name, ref } = window.currentViewingReference;
 
+            // Ask user for regen strategy
+            const choice = confirm(
+                `Cách tạo lại @${name}:\n\n` +
+                `OK = Giữ nguyên seed (nhân vật tương tự)\n` +
+                `Cancel = Seed mới (variation khác)\n\n` +
+                `Seed hiện tại: ${ref.seed}`
+            );
+
             const loadingId = `loading-regen-ref-${Date.now()}`;
             addLoadingCard(loadingId, `Tạo lại @${name}`);
             closeModal();
 
             try {
                 const aspectRatio = document.getElementById('aspectRatio').value;
-                // Use the reference's own image to maintain consistency!
-                const result = await generateSingleWithReference(ref.prompt, aspectRatio, null, {
-                    imageUrl: ref.imageUrl,
-                    generationId: ref.generationId
-                });
+
+                // Strategy based on user choice
+                let result;
+                if (choice) {
+                    // Keep same seed - should maintain character appearance
+                    console.log(`Regen with SAME SEED ${ref.seed} for consistency`);
+                    result = await generateSingleWithReference(
+                        ref.prompt,
+                        aspectRatio,
+                        ref.seed,  // USE SAME SEED!
+                        {
+                            imageUrl: ref.imageUrl,
+                            generationId: ref.generationId
+                        }
+                    );
+                } else {
+                    // New seed - create variation
+                    console.log('Regen with NEW SEED for variation');
+                    result = await generateSingleWithReference(
+                        ref.prompt,
+                        aspectRatio,
+                        null,  // New seed
+                        {
+                            imageUrl: ref.imageUrl,
+                            generationId: ref.generationId
+                        }
+                    );
+                }
 
                 removeLoadingCard(loadingId);
 
                 if (result.success) {
-                    namedReferences[category][name] = {
+                    // Add version history to references
+                    if (!ref.versions) {
+                        // Migrate old format to version history
+                        ref.versions = [{
+                            imageUrl: ref.imageUrl,
+                            generationId: ref.generationId,
+                            seed: ref.seed,
+                            timestamp: Date.now() - 1000
+                        }];
+                        ref.currentVersion = 0;
+                    }
+
+                    // Add new version at the beginning
+                    ref.versions.unshift({
                         imageUrl: result.imageUrl,
-                        prompt: ref.prompt,
-                        seed: result.seed,
                         generationId: result.generationId,
+                        seed: result.seed,
+                        timestamp: Date.now()
+                    });
+
+                    // Set to newest version
+                    ref.currentVersion = 0;
+
+                    // Update reference with new current version
+                    const currentVer = ref.versions[0];
+                    namedReferences[category][name] = {
+                        ...ref,
+                        imageUrl: currentVer.imageUrl,
+                        generationId: currentVer.generationId,
+                        seed: currentVer.seed,
                         name: name
                     };
 
                     updateReferenceLibrary();
-                    alert(`✅ Đã tạo lại @${name}!`);
+                    alert(`✅ Đã tạo version mới cho @${name}!\nTổng: ${ref.versions.length} versions\nSeed: ${result.seed}`);
                 } else {
                     alert(`Lỗi: ${result.error}`);
                 }
@@ -1404,13 +1517,20 @@
                 removeLoadingCard(loadingId);
 
                 if (result.success) {
-                    // Save to named references
+                    // Save to named references with version history
                     namedReferences[category][name] = {
                         imageUrl: result.imageUrl,
                         prompt: prompt,
                         seed: result.seed,
                         generationId: result.generationId,
-                        name: name
+                        name: name,
+                        versions: [{
+                            imageUrl: result.imageUrl,
+                            generationId: result.generationId,
+                            seed: result.seed,
+                            timestamp: Date.now()
+                        }],
+                        currentVersion: 0
                     };
 
                     // Clear inputs
@@ -2251,6 +2371,12 @@
         }
 
         function navigateModalVersion(direction) {
+            // Check if viewing reference or regular image
+            if (window.currentViewingReference) {
+                navigateReferenceVersion(direction);
+                return;
+            }
+
             if (!currentModalImage) return;
 
             if (direction === 'prev' && currentModalImage.currentVersion < currentModalImage.versions.length - 1) {
