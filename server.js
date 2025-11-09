@@ -301,11 +301,8 @@ const generateImage = async (prompt, options = {}) => {
     log(`Response status: ${response.status}`);
 
     if (response.data) {
-      // Save response for debugging
-      await fs.writeFile(
-        path.join(__dirname, `response_${Date.now()}.json`),
-        JSON.stringify(response.data, null, 2)
-      );
+      // Debug: Log response structure (not saving to file anymore)
+      log(`Response has ${response.data.imagePanels?.length || 0} image panels`);
 
       // Extract base64 encoded image and generation ID
       const result = extractImageFromResponse(response.data);
@@ -442,11 +439,8 @@ const editImage = async (prompt, referenceImagePath, options = {}) => {
     log(`Response status: ${response.status}`);
 
     if (response.data) {
-      // Save response for debugging
-      await fs.writeFile(
-        path.join(__dirname, `edit_response_${Date.now()}.json`),
-        JSON.stringify(response.data, null, 2)
-      );
+      // Debug: Log response structure (not saving to file anymore)
+      log(`Edit response received successfully`);
 
       // Extract base64 encoded image and generation ID
       const result = extractImageFromResponse(response.data);

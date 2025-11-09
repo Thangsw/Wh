@@ -357,19 +357,19 @@
 
         .gallery {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
         }
 
         @media (min-width: 1400px) {
             .gallery {
-                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
             }
         }
 
         @media (min-width: 1800px) {
             .gallery {
-                grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             }
         }
 
@@ -391,7 +391,7 @@
 
         .image-card img {
             width: 100%;
-            height: 240px;
+            height: 120px;
             object-fit: cover;
             cursor: pointer;
             transition: transform 0.3s;
@@ -402,36 +402,36 @@
         }
 
         .image-info {
-            padding: 14px;
+            padding: 8px;
         }
 
         .image-prompt {
-            font-size: 13px;
+            font-size: 11px;
             color: var(--text-primary);
-            margin-bottom: 8px;
+            margin-bottom: 4px;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
-            line-height: 1.4;
+            line-height: 1.3;
         }
 
         .image-seed {
-            font-size: 11px;
+            font-size: 9px;
             color: var(--text-secondary);
-            margin-bottom: 12px;
+            margin-bottom: 6px;
         }
 
         .image-actions {
             display: flex;
-            gap: 6px;
+            gap: 4px;
             flex-wrap: wrap;
         }
 
         .btn-icon {
-            padding: 6px 12px;
-            font-size: 11px;
-            border-radius: 5px;
+            padding: 4px 8px;
+            font-size: 9px;
+            border-radius: 4px;
             border: 1px solid var(--border-color);
             background: var(--bg-main);
             color: var(--text-primary);
@@ -703,6 +703,9 @@
                     </label>
                     <div class="folder-path" id="folderPath">Chưa chọn</div>
                     <button class="btn btn-secondary" onclick="selectDownloadFolder()" style="width: 100%; margin-top: 8px;">Chọn Thư Mục</button>
+                    <button class="btn btn-primary" onclick="downloadAllImages()" id="downloadAllBtn" style="width: 100%; margin-top: 8px;" disabled>
+                        📥 Tải Tất Cả
+                    </button>
                     <div style="margin-top: 12px;">
                         <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="checkbox" id="autoDownload">
@@ -783,6 +786,17 @@
         // Batch reference chain: tracks which image references which
         // Format: { imageId: { referenceId, generationId } }
         let batchReferenceChain = {};
+
+        // Track highest batch index to continue numbering
+        let maxBatchIndex = -1;
+
+        // Load saved folder from localStorage on startup
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedFolderName = localStorage.getItem('whisk_folder_name');
+            if (savedFolderName) {
+                document.getElementById('folderPath').textContent = savedFolderName + ' (saved)';
+            }
+        });
 
         // Style presets
         const stylePresets = {
@@ -874,6 +888,13 @@
                 if ('showDirectoryPicker' in window) {
                     downloadFolderHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
                     document.getElementById('folderPath').textContent = downloadFolderHandle.name;
+
+                    // Save folder name to localStorage
+                    localStorage.setItem('whisk_folder_name', downloadFolderHandle.name);
+                    console.log(`Saved folder: ${downloadFolderHandle.name}`);
+
+                    // Update button states
+                    updateImageCount();
                 } else {
                     alert('Trình duyệt không hỗ trợ File System Access API');
                 }
@@ -957,8 +978,12 @@
                     removeLoadingCard(loadingId);
 
                     if (result.success) {
-                        // Add image with batch metadata
-                        const imageId = addImageToGallery(result.imageUrl, prompts[i], result.seed, result.generationId, i);
+                        // Add image with batch metadata (continue batch index from previous)
+                        const batchIndex = maxBatchIndex + 1 + i;
+                        const imageId = addImageToGallery(result.imageUrl, prompts[i], result.seed, result.generationId, batchIndex);
+
+                        // Update max batch index
+                        maxBatchIndex = Math.max(maxBatchIndex, batchIndex);
 
                         // Track reference chain for this batch
                         if (currentReference) {
@@ -1072,12 +1097,45 @@
             }
         }
 
+        function showCardLoading(imageId) {
+            const card = document.getElementById(`card-${imageId}`);
+            if (!card) return;
+
+            // Add loading overlay to the card
+            const overlay = document.createElement('div');
+            overlay.id = `loading-overlay-${imageId}`;
+            overlay.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                z-index: 10;
+                border-radius: 12px;
+            `;
+            overlay.innerHTML = `
+                <div class="spinner"></div>
+                <div style="color: white; margin-top: 12px; font-size: 11px;">Đang tạo...</div>
+            `;
+            card.style.position = 'relative';
+            card.appendChild(overlay);
+        }
+
+        function hideCardLoading(imageId) {
+            const overlay = document.getElementById(`loading-overlay-${imageId}`);
+            if (overlay) overlay.remove();
+        }
+
         async function regenerateImageInPlace(imageId) {
             const image = images.find(img => img.id === imageId);
             if (!image) return;
 
-            const loadingId = `loading-regen-${Date.now()}`;
-            addLoadingCard(loadingId, image.prompt);
+            showCardLoading(imageId);
 
             try {
                 const aspectRatio = document.getElementById('aspectRatio').value;
@@ -1107,7 +1165,7 @@
                     referenceToUse
                 );
 
-                removeLoadingCard(loadingId);
+                hideCardLoading(imageId);
 
                 if (result.success) {
                     // Add new version to this image (prepend to versions array)
@@ -1129,21 +1187,68 @@
                     alert(`Lỗi: ${result.error}`);
                 }
             } catch (err) {
-                removeLoadingCard(loadingId);
+                hideCardLoading(imageId);
                 console.error('Regeneration error:', err);
             }
         }
 
-        function undoVersion(imageId) {
+        function navigateVersion(imageId, direction) {
             const image = images.find(img => img.id === imageId);
             if (!image) return;
 
-            // Move to older version
-            if (image.currentVersion < image.versions.length - 1) {
+            if (direction === 'prev' && image.currentVersion < image.versions.length - 1) {
+                // Go to older version
                 image.currentVersion++;
                 renderImageCard(image);
-                console.log(`Undo to version ${image.versions.length - image.currentVersion}/${image.versions.length}`);
+                console.log(`Navigate to older version: ${image.versions.length - image.currentVersion}/${image.versions.length}`);
+            } else if (direction === 'next' && image.currentVersion > 0) {
+                // Go to newer version
+                image.currentVersion--;
+                renderImageCard(image);
+                console.log(`Navigate to newer version: ${image.versions.length - image.currentVersion}/${image.versions.length}`);
             }
+        }
+
+        // Legacy function for backward compatibility
+        function undoVersion(imageId) {
+            navigateVersion(imageId, 'prev');
+        }
+
+        function editPrompt(imageId) {
+            const image = images.find(img => img.id === imageId);
+            if (!image) return;
+
+            const promptDiv = document.querySelector(`#card-${imageId} .image-prompt`);
+            if (!promptDiv) return;
+
+            // Create editable textarea
+            const currentPrompt = image.prompt;
+            promptDiv.innerHTML = `
+                <textarea id="edit-prompt-${imageId}" style="width: 100%; min-height: 50px; padding: 4px; font-size: 11px; border: 1px solid var(--primary-color); border-radius: 4px; background: var(--bg-main); color: var(--text-primary); resize: vertical;">${currentPrompt}</textarea>
+                <div style="display: flex; gap: 4px; margin-top: 4px;">
+                    <button class="btn-icon" onclick="savePrompt(${imageId})" style="flex: 1; background: var(--primary-color); color: white;">✓ Save</button>
+                    <button class="btn-icon" onclick="renderImageCard(images.find(img => img.id === ${imageId}))" style="flex: 1;">✗ Cancel</button>
+                </div>
+            `;
+            document.getElementById(`edit-prompt-${imageId}`).focus();
+        }
+
+        function savePrompt(imageId) {
+            const image = images.find(img => img.id === imageId);
+            if (!image) return;
+
+            const textarea = document.getElementById(`edit-prompt-${imageId}`);
+            if (!textarea) return;
+
+            const newPrompt = textarea.value.trim();
+            if (!newPrompt) {
+                alert('Prompt không được để trống!');
+                return;
+            }
+
+            // Update prompt and re-render
+            image.prompt = newPrompt;
+            renderImageCard(image);
         }
 
         // Legacy regenerateImage for backward compatibility
@@ -1223,7 +1328,9 @@
 
             const currentVer = image.versions[image.currentVersion];
             const hasHistory = image.versions.length > 1;
-            const canUndo = image.currentVersion < image.versions.length - 1;
+            const canGoPrev = image.currentVersion < image.versions.length - 1;
+            const canGoNext = image.currentVersion > 0;
+            const currentVersionNum = image.versions.length - image.currentVersion;
 
             const card = document.createElement('div');
             card.className = 'image-card';
@@ -1239,7 +1346,10 @@
                 ${versionBadge}
                 <img src="${currentVer.imageUrl}" alt="${image.prompt}" onclick="openModal({id: ${image.id}})">
                 <div class="image-info">
-                    <div class="image-prompt">${image.prompt}</div>
+                    <div style="display: flex; align-items: flex-start; gap: 4px;">
+                        <div class="image-prompt" style="flex: 1;">${image.prompt}</div>
+                        <button class="btn-icon" onclick="editPrompt(${image.id})" title="Chỉnh sửa prompt" style="padding: 2px 6px; font-size: 10px;">✏️</button>
+                    </div>
                     <div class="image-seed">Seed: ${currentVer.seed || 'auto'}${image.batchIndex !== null ? ` | Batch #${image.batchIndex + 1}` : ''}</div>
                     <div class="image-actions">
                         <button class="btn-icon" onclick="setReferenceImage('${currentVer.imageUrl}', '${image.prompt.replace(/'/g, "\\'")}', ${currentVer.seed}, '${currentVer.generationId || ''}')" title="Dùng làm tham chiếu">
@@ -1248,9 +1358,15 @@
                         <button class="btn-icon" onclick="regenerateImageInPlace(${image.id})" title="Tạo lại (thay thế)">
                             🔄 Regen
                         </button>
-                        ${canUndo ? `<button class="btn-icon active" onclick="undoVersion(${image.id})" title="Quay lại version trước">
-                            ↩️ Undo
-                        </button>` : ''}
+                        ${hasHistory ? `<div style="display: flex; gap: 2px; align-items: center;">
+                            <button class="btn-icon" onclick="navigateVersion(${image.id}, 'prev')" ${!canGoPrev ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : ''} title="Version cũ hơn">
+                                ←
+                            </button>
+                            <span style="font-size: 9px; color: var(--text-secondary); padding: 0 4px; white-space: nowrap;">[${currentVersionNum}/${image.versions.length}]</span>
+                            <button class="btn-icon" onclick="navigateVersion(${image.id}, 'next')" ${!canGoNext ? 'disabled style="opacity: 0.3; cursor: not-allowed;"' : ''} title="Version mới hơn">
+                                →
+                            </button>
+                        </div>` : ''}
                         <button class="btn-icon" onclick="downloadImage('${currentVer.imageUrl}', '${image.prompt.replace(/'/g, "\\'")}', ${currentVer.seed})" title="Tải về">
                             📥
                         </button>
@@ -1319,6 +1435,12 @@
 
         function updateImageCount() {
             document.getElementById('imageCount').textContent = images.length;
+
+            // Enable download all button if folder selected and images exist
+            const downloadAllBtn = document.getElementById('downloadAllBtn');
+            if (downloadAllBtn) {
+                downloadAllBtn.disabled = !downloadFolderHandle || images.length === 0;
+            }
         }
 
         // Modal
@@ -1389,6 +1511,50 @@
             const writable = await fileHandle.createWritable();
             await writable.write(blob);
             await writable.close();
+        }
+
+        async function downloadAllImages() {
+            if (!downloadFolderHandle) {
+                alert('Vui lòng chọn thư mục trước!');
+                return;
+            }
+
+            if (images.length === 0) {
+                alert('Không có ảnh nào để tải!');
+                return;
+            }
+
+            const confirmDownload = confirm(`Bạn có chắc muốn tải ${images.length} ảnh về thư mục "${downloadFolderHandle.name}"?`);
+            if (!confirmDownload) return;
+
+            const downloadBtn = document.getElementById('downloadAllBtn');
+            const originalText = downloadBtn.innerHTML;
+            downloadBtn.disabled = true;
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (let i = 0; i < images.length; i++) {
+                const image = images[i];
+                const currentVer = image.versions[image.currentVersion];
+                const batchNum = image.batchIndex !== null ? `_batch${image.batchIndex + 1}` : '';
+                const filename = `whisk${batchNum}_${currentVer.seed || 'auto'}_${image.id}.jpg`;
+
+                downloadBtn.innerHTML = `⏳ Đang tải ${i + 1}/${images.length}...`;
+
+                try {
+                    await saveToFolder(currentVer.imageUrl, filename);
+                    successCount++;
+                } catch (err) {
+                    console.error(`Error downloading image ${image.id}:`, err);
+                    errorCount++;
+                }
+            }
+
+            downloadBtn.innerHTML = originalText;
+            downloadBtn.disabled = false;
+
+            alert(`✅ Tải xong!\nThành công: ${successCount}\nLỗi: ${errorCount}`);
         }
 
         // Keyboard shortcuts
