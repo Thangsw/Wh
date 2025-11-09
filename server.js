@@ -956,28 +956,58 @@ app.post('/api/veo3/create-project', async (req, res) => {
     log('Creating Veo3 project...');
 
     const token = await getAccessToken();
-    const response = await axios.post(
-      'https://labs.google/fx/api/trpc/project.create',
-      { json: { toolName: 'PINHOLE' } },
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Referer': 'https://labs.google/fx/vi/tools/flow',
-          'Origin': 'https://labs.google/fx'
+
+    // Try batch format (new API style)
+    try {
+      const response = await axios.post(
+        'https://labs.google/fx/api/trpc/project.create?batch=1',
+        {
+          "0": { json: { toolName: 'PINHOLE' } }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Referer': 'https://labs.google/fx/tools/flow',
+            'Origin': 'https://labs.google/fx'
+          }
         }
-      }
-    );
+      );
 
-    const projectId = response.data.result.data.json.projectId;
-    veo3Session.projectId = projectId;
-    veo3Session.createdAt = Date.now();
+      const projectId = response.data[0].result.data.json.projectId;
+      veo3Session.projectId = projectId;
+      veo3Session.createdAt = Date.now();
 
-    log(`✓ Veo3 project created: ${projectId}`);
-    res.json({ success: true, projectId });
+      log(`✓ Veo3 project created (batch): ${projectId}`);
+      return res.json({ success: true, projectId });
+    } catch (batchErr) {
+      log(`Batch format failed: ${batchErr.message}, trying standard format...`);
+
+      // Fallback: standard format
+      const response = await axios.post(
+        'https://labs.google/fx/api/trpc/project.create',
+        { json: { toolName: 'PINHOLE' } },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Referer': 'https://labs.google/fx/tools/flow',
+            'Origin': 'https://labs.google/fx'
+          }
+        }
+      );
+
+      const projectId = response.data.result.data.json.projectId;
+      veo3Session.projectId = projectId;
+      veo3Session.createdAt = Date.now();
+
+      log(`✓ Veo3 project created (standard): ${projectId}`);
+      return res.json({ success: true, projectId });
+    }
   } catch (err) {
     log(`✗ Create project failed: ${err.message}`, 'error');
-    res.json({ success: false, error: err.message });
+    log(`Error details: ${JSON.stringify(err.response?.data || {})}`);
+    res.json({ success: false, error: err.message, details: err.response?.data });
   }
 });
 
