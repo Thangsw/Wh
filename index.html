@@ -1124,8 +1124,27 @@
             // Open modal to view and regenerate
             const modal = document.getElementById('imageModal');
             document.getElementById('modalImage').src = ref.imageUrl;
-            document.getElementById('modalPrompt').textContent = `"@${name}" - ${ref.prompt}`;
-            document.getElementById('modalSeed').textContent = `Seed: ${ref.seed || 'auto'}`;
+
+            // Create editable interface for reference
+            const promptDiv = document.getElementById('modalPrompt');
+            promptDiv.innerHTML = `
+                <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Tên:</div>
+                        <div id="refNameDisplay" style="font-size: 16px; font-weight: 600; color: var(--primary-color);">@${name}</div>
+                    </div>
+                    <button class="btn-icon" onclick="editReferenceName()" title="Đổi tên" style="padding: 4px 8px; font-size: 10px;">✏️ Tên</button>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Mô tả:</div>
+                        <div id="refPromptDisplay" style="font-size: 14px;">${ref.prompt}</div>
+                    </div>
+                    <button class="btn-icon" onclick="editReferencePrompt()" title="Sửa mô tả" style="padding: 4px 8px; font-size: 10px;">✏️ Mô tả</button>
+                </div>
+            `;
+
+            document.getElementById('modalSeed').textContent = `Seed: ${ref.seed || 'auto'} | ${category === 'characters' ? '👤 Nhân Vật' : '🏞️ Khung Cảnh'}`;
             document.getElementById('modalVersionNav').style.display = 'none';
             document.getElementById('modalPrevBatch').style.display = 'none';
             document.getElementById('modalNextBatch').style.display = 'none';
@@ -1136,8 +1155,91 @@
 
             modal.classList.add('active');
 
-            // Store reference info for regen
+            // Store reference info for regen and editing
             window.currentViewingReference = { category, name, ref };
+        }
+
+        function editReferenceName() {
+            if (!window.currentViewingReference) return;
+            const { category, name, ref } = window.currentViewingReference;
+
+            const nameDiv = document.getElementById('refNameDisplay');
+            nameDiv.innerHTML = `
+                <input type="text" id="editRefName" value="${name}" style="width: 100%; padding: 6px; border: 1px solid var(--primary-color); border-radius: 4px; background: var(--bg-main); color: var(--text-primary); font-size: 14px;">
+                <div style="display: flex; gap: 4px; margin-top: 4px;">
+                    <button class="btn-icon" onclick="saveReferenceName()" style="flex: 1; background: var(--primary-color); color: white;">✓</button>
+                    <button class="btn-icon" onclick="viewReference('${category}', '${name}')" style="flex: 1;">✗</button>
+                </div>
+            `;
+            document.getElementById('editRefName').focus();
+        }
+
+        function saveReferenceName() {
+            if (!window.currentViewingReference) return;
+            const { category, name: oldName, ref } = window.currentViewingReference;
+
+            const input = document.getElementById('editRefName');
+            if (!input) return;
+
+            const newName = input.value.trim().toLowerCase();
+            if (!newName) {
+                alert('Tên không được để trống!');
+                return;
+            }
+
+            if (newName !== oldName && namedReferences[category][newName]) {
+                alert(`Tên @${newName} đã tồn tại!`);
+                return;
+            }
+
+            // Remove old entry
+            delete namedReferences[category][oldName];
+
+            // Add with new name
+            namedReferences[category][newName] = {
+                ...ref,
+                name: newName
+            };
+
+            updateReferenceLibrary();
+            closeModal();
+            alert(`✅ Đã đổi tên @${oldName} → @${newName}`);
+        }
+
+        function editReferencePrompt() {
+            if (!window.currentViewingReference) return;
+            const { category, name, ref } = window.currentViewingReference;
+
+            const promptDiv = document.getElementById('refPromptDisplay');
+            promptDiv.innerHTML = `
+                <textarea id="editRefPrompt" style="width: 100%; min-height: 80px; padding: 8px; border: 1px solid var(--primary-color); border-radius: 4px; background: var(--bg-main); color: var(--text-primary); font-size: 13px; resize: vertical;">${ref.prompt}</textarea>
+                <div style="display: flex; gap: 4px; margin-top: 4px;">
+                    <button class="btn-icon" onclick="saveReferencePrompt()" style="flex: 1; background: var(--primary-color); color: white;">✓</button>
+                    <button class="btn-icon" onclick="viewReference('${category}', '${name}')" style="flex: 1;">✗</button>
+                </div>
+            `;
+            document.getElementById('editRefPrompt').focus();
+        }
+
+        function saveReferencePrompt() {
+            if (!window.currentViewingReference) return;
+            const { category, name, ref } = window.currentViewingReference;
+
+            const textarea = document.getElementById('editRefPrompt');
+            if (!textarea) return;
+
+            const newPrompt = textarea.value.trim();
+            if (!newPrompt) {
+                alert('Mô tả không được để trống!');
+                return;
+            }
+
+            // Update prompt
+            namedReferences[category][name].prompt = newPrompt;
+
+            updateReferenceLibrary();
+            viewReference(category, name); // Refresh view
+            alert('✅ Đã cập nhật mô tả!');
         }
 
         async function regenerateReference() {
@@ -1154,7 +1256,11 @@
 
             try {
                 const aspectRatio = document.getElementById('aspectRatio').value;
-                const result = await generateSingleWithReference(ref.prompt, aspectRatio, null, null);
+                // Use the reference's own image to maintain consistency!
+                const result = await generateSingleWithReference(ref.prompt, aspectRatio, null, {
+                    imageUrl: ref.imageUrl,
+                    generationId: ref.generationId
+                });
 
                 removeLoadingCard(loadingId);
 
@@ -1929,10 +2035,10 @@
                         }
                     });
 
-                    // Add new image
+                    // Add new image (use originalPrompt to keep @mentions!)
                     const newImageId = addImageToGallery(
                         result.imageUrl,
-                        prompt,
+                        originalPrompt,
                         result.seed,
                         result.generationId,
                         image.batchIndex + 1
