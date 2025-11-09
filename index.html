@@ -934,6 +934,29 @@
         </div>
     </div>
 
+    <!-- Insert Image Modal -->
+    <div class="modal" id="insertModal" onclick="closeInsertModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 600px;">
+            <button class="modal-close" onclick="closeInsertModal()">×</button>
+            <h3 style="margin: 0 0 20px 0; color: var(--text-primary);">Chèn Ảnh Mới</h3>
+
+            <div class="form-group">
+                <label>✍️ Prompt</label>
+                <textarea id="insertPrompt" placeholder="VD: @ben đang nhìn ra cửa sổ" style="min-height: 100px;"></textarea>
+                <div class="help-text">Dùng @tên để gọi reference đã tạo</div>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="confirmInsert()" style="flex: 1;">
+                    ✨ Tạo & Chèn
+                </button>
+                <button class="btn btn-secondary" onclick="closeInsertModal()" style="flex: 1;">
+                    Hủy
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // State
         let images = [];
@@ -951,6 +974,9 @@
 
         // Track highest batch index to continue numbering
         let maxBatchIndex = -1;
+
+        // Insert modal state
+        let pendingInsertAfterImageId = null;
 
         // Load saved folder from localStorage on startup
         window.addEventListener('DOMContentLoaded', () => {
@@ -1332,6 +1358,13 @@
             for (let i = 0; i < prompts.length; i++) {
                 let prompt = prompts[i].trim();
 
+                // Parse @mentions and resolve references
+                const parsed = parsePromptWithReferences(prompt);
+                if (parsed.references.length > 0) {
+                    console.log(`Resolved ${parsed.references.length} references in prompt`);
+                    prompt = parsed.prompt; // Use parsed prompt with descriptions
+                }
+
                 // Add style to prompt
                 if (styleText) {
                     prompt = `${prompt}, ${styleText}`;
@@ -1350,8 +1383,8 @@
                     let currentReference = null;
 
                     if (i === 0) {
-                        // First image: use manual reference if set (use first ref image)
-                        currentReference = referenceImages.length > 0 ? referenceImages[0] : null;
+                        // First image: use first @mention reference if found, otherwise batch mode
+                        currentReference = parsed.references.length > 0 ? parsed.references[0] : null;
                     } else {
                         // Subsequent images: apply batch reference mode
                         if (batchRefMode === 'first' && firstImageResult) {
@@ -1819,17 +1852,51 @@
             }
         }
 
-        async function insertImageAfter(imageId) {
+        function insertImageAfter(imageId) {
             const image = images.find(img => img.id === imageId);
             if (!image || image.batchIndex === null) return;
 
-            const prompt = window.prompt('Nhập prompt cho ảnh mới:');
-            if (!prompt) return;
+            // Open modal
+            pendingInsertAfterImageId = imageId;
+            document.getElementById('insertPrompt').value = '';
+            document.getElementById('insertModal').classList.add('active');
+            document.getElementById('insertPrompt').focus();
+        }
+
+        function closeInsertModal(event) {
+            if (!event || event.target.id === 'insertModal') {
+                document.getElementById('insertModal').classList.remove('active');
+                pendingInsertAfterImageId = null;
+            }
+        }
+
+        async function confirmInsert() {
+            if (!pendingInsertAfterImageId) return;
+
+            let prompt = document.getElementById('insertPrompt').value.trim();
+            if (!prompt) {
+                alert('Vui lòng nhập prompt!');
+                return;
+            }
+
+            const imageId = pendingInsertAfterImageId;
+            const image = images.find(img => img.id === imageId);
+            if (!image) return;
+
+            closeInsertModal();
+
+            // Parse @mentions
+            const parsed = parsePromptWithReferences(prompt);
+            const originalPrompt = prompt; // Keep for display
+            if (parsed.references.length > 0) {
+                prompt = parsed.prompt; // Use parsed prompt
+                console.log(`Insert: Resolved ${parsed.references.length} references`);
+            }
 
             const targetBatchIndex = image.batchIndex + 0.5; // Insert between current and next
 
             const loadingId = `loading-insert-${Date.now()}`;
-            addLoadingCard(loadingId, prompt);
+            addLoadingCard(loadingId, originalPrompt);
 
             try {
                 const aspectRatio = document.getElementById('aspectRatio').value;
@@ -1838,7 +1905,10 @@
                 const batchRefMode = document.getElementById('batchReferenceMode').value;
                 let currentReference = null;
 
-                if (batchRefMode === 'chain') {
+                // Use @mention reference first, then batch mode
+                if (parsed.references.length > 0) {
+                    currentReference = parsed.references[0];
+                } else if (batchRefMode === 'chain') {
                     // Use current image as reference
                     const currentVer = image.versions[image.currentVersion];
                     currentReference = {
@@ -1940,21 +2010,40 @@
 
             if (!draggedImage || !targetImage) return;
 
-            // Swap batch indices
+            // INSERT mode (not swap)
             if (draggedImage.batchIndex !== null && targetImage.batchIndex !== null) {
-                const tempIndex = draggedImage.batchIndex;
-                draggedImage.batchIndex = targetImage.batchIndex;
-                targetImage.batchIndex = tempIndex;
+                const draggedIdx = draggedImage.batchIndex;
+                const targetIdx = targetImage.batchIndex;
+
+                if (draggedIdx < targetIdx) {
+                    // Moving down: shift images between dragged+1 and target down by 1
+                    images.forEach(img => {
+                        if (img.batchIndex !== null && img.batchIndex > draggedIdx && img.batchIndex <= targetIdx && img.id !== draggedImageId) {
+                            img.batchIndex--;
+                        }
+                    });
+                } else {
+                    // Moving up: shift images between target and dragged-1 up by 1
+                    images.forEach(img => {
+                        if (img.batchIndex !== null && img.batchIndex >= targetIdx && img.batchIndex < draggedIdx && img.id !== draggedImageId) {
+                            img.batchIndex++;
+                        }
+                    });
+                }
+
+                // Set dragged to target position
+                draggedImage.batchIndex = targetIdx;
 
                 renderGallery();
                 updateImageCount();
             } else {
-                // For non-batch images, swap positions in array
+                // For non-batch images, insert into array
                 const draggedIdx = images.findIndex(img => img.id === draggedImageId);
                 const targetIdx = images.findIndex(img => img.id === targetImageId);
 
                 if (draggedIdx > -1 && targetIdx > -1) {
-                    [images[draggedIdx], images[targetIdx]] = [images[targetIdx], images[draggedIdx]];
+                    const [removed] = images.splice(draggedIdx, 1);
+                    images.splice(targetIdx, 0, removed);
                     renderGallery();
                 }
             }
