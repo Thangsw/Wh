@@ -368,9 +368,22 @@ const editImage = async (prompt, referenceImagePath, options = {}) => {
     const imageBuffer = await fs.readFile(path.join(__dirname, referenceImagePath.replace(/^\//, '')));
     const base64Image = imageBuffer.toString('base64');
 
-    // Find reference in conversation history
-    const reference = conversationHistory.find(h => h.imageUrl === referenceImagePath);
-    const originalGenerationId = reference ? reference.generationId : null;
+    // Get generation ID from options or find in conversation history
+    let originalGenerationId = options.generationId || null;
+
+    if (!originalGenerationId) {
+      // Fallback: find reference in conversation history
+      const reference = conversationHistory.find(h => h.imageUrl === referenceImagePath);
+      originalGenerationId = reference ? reference.generationId : null;
+
+      if (originalGenerationId) {
+        log(`✓ Found generationId from history: ${originalGenerationId.substring(0, 20)}...`);
+      } else {
+        log(`⚠ No generationId found for reference image`);
+      }
+    } else {
+      log(`✓ Using provided generationId: ${originalGenerationId.substring(0, 20)}...`);
+    }
 
     const aspectRatio = options.aspectRatio || 'IMAGE_ASPECT_RATIO_LANDSCAPE';
 
@@ -800,13 +813,13 @@ app.post('/api/generate', async (req, res) => {
 });
 
 app.post('/api/edit', async (req, res) => {
-  const { prompt, referenceImage, aspectRatio } = req.body;
+  const { prompt, referenceImage, aspectRatio, generationId } = req.body;
 
   if (!prompt || !referenceImage) {
     return res.json({ success: false, error: 'Prompt and reference image are required' });
   }
 
-  const result = await editImage(prompt, referenceImage, { aspectRatio });
+  const result = await editImage(prompt, referenceImage, { aspectRatio, generationId });
   res.json(result);
 });
 

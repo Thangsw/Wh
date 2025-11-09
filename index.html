@@ -993,14 +993,22 @@
             const useReference = refImage || referenceImage;
 
             if (useReference) {
+                const editPayload = {
+                    prompt: prompt,
+                    referenceImage: useReference.imageUrl,
+                    aspectRatio: aspectRatio
+                };
+
+                // Pass generationId if available for better reference accuracy
+                if (useReference.generationId) {
+                    editPayload.generationId = useReference.generationId;
+                    console.log(`Using generationId for reference: ${useReference.generationId.substring(0, 20)}...`);
+                }
+
                 const res = await fetch('/api/edit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: prompt,
-                        referenceImage: useReference.imageUrl,
-                        aspectRatio: aspectRatio
-                    })
+                    body: JSON.stringify(editPayload)
                 });
                 return await res.json();
             } else {
