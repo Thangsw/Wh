@@ -5,204 +5,149 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Whisk AI - Image Generator</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary-color: #1a73e8;
-            --primary-hover: #1557b0;
-            --success-color: #34a853;
-            --success-hover: #2d8e47;
-            --warning-color: #f9ab00;
-            --danger-color: #ea4335;
-            --bg-main: #0f1419;
-            --bg-sidebar: #1a1f2e;
-            --bg-card: #252d3d;
-            --bg-hover: #2d3548;
-            --text-primary: #e8eaed;
-            --text-secondary: #9aa0a6;
-            --border-color: #3c4454;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
-            background: var(--bg-main);
-            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f8f9fa;
+            color: #212529;
             line-height: 1.6;
-            overflow: hidden;
         }
 
-        /* App Layout - Full Screen */
-        .app-container {
-            display: flex;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        /* Sidebar - Fixed Width */
-        .sidebar {
-            width: 380px;
-            background: var(--bg-sidebar);
-            border-right: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-        }
-
-        .sidebar::-webkit-scrollbar { width: 8px; }
-        .sidebar::-webkit-scrollbar-track { background: transparent; }
-        .sidebar::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 4px;
-        }
-        .sidebar::-webkit-scrollbar-thumb:hover { background: #4a5568; }
-
-        /* Main Content - Takes Remaining Space */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
         /* Header */
         .header {
-            background: var(--bg-sidebar);
-            padding: 16px 24px;
-            border-bottom: 1px solid var(--border-color);
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
             gap: 16px;
         }
 
-        .header-title {
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a73e8;
             display: flex;
             align-items: center;
             gap: 12px;
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--primary-color);
         }
 
         .header-actions {
             display: flex;
-            gap: 8px;
+            gap: 12px;
             align-items: center;
-            flex-wrap: wrap;
         }
 
         .status-badge {
-            padding: 6px 14px;
-            border-radius: 16px;
-            font-size: 13px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
         }
 
         .status-badge.ready {
-            background: rgba(52, 168, 83, 0.15);
-            color: var(--success-color);
-            border: 1px solid var(--success-color);
+            background: #e6f4ea;
+            color: #1e8e3e;
         }
 
         .status-badge.waiting {
-            background: rgba(249, 171, 0, 0.15);
-            color: var(--warning-color);
-            border: 1px solid var(--warning-color);
+            background: #fef7e0;
+            color: #f9ab00;
         }
 
         .status-badge::before {
             content: '';
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             background: currentColor;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
         }
 
         /* Buttons */
         .btn {
-            padding: 8px 16px;
+            padding: 10px 20px;
             border: none;
-            border-radius: 6px;
-            font-size: 13px;
+            border-radius: 8px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            white-space: nowrap;
+            gap: 8px;
         }
 
         .btn:disabled {
-            opacity: 0.4;
+            opacity: 0.5;
             cursor: not-allowed;
         }
 
         .btn-primary {
-            background: var(--primary-color);
+            background: #1a73e8;
             color: white;
         }
 
         .btn-primary:hover:not(:disabled) {
-            background: var(--primary-hover);
+            background: #1557b0;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(26,115,232,0.4);
+            box-shadow: 0 4px 12px rgba(26,115,232,0.3);
         }
 
         .btn-secondary {
-            background: var(--bg-card);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
+            background: #f1f3f4;
+            color: #5f6368;
         }
 
         .btn-secondary:hover:not(:disabled) {
-            background: var(--bg-hover);
-            border-color: var(--primary-color);
+            background: #e8eaed;
         }
 
         .btn-success {
-            background: var(--success-color);
+            background: #34a853;
             color: white;
         }
 
         .btn-success:hover:not(:disabled) {
-            background: var(--success-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(52, 168, 83, 0.4);
+            background: #2d8e47;
         }
 
-        /* Sidebar Content */
-        .sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid var(--border-color);
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 24px;
         }
 
-        .sidebar-header h2 {
-            font-size: 18px;
+        @media (max-width: 1024px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .panel h2 {
+            font-size: 20px;
             font-weight: 700;
-            margin-bottom: 8px;
-        }
-
-        .sidebar-subtitle {
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
-
-        .sidebar-body {
-            padding: 20px;
+            margin-bottom: 20px;
+            color: #202124;
         }
 
         /* Form Controls */
@@ -212,55 +157,52 @@
 
         .form-group label {
             display: block;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
-            color: var(--text-primary);
+            color: #5f6368;
             margin-bottom: 8px;
         }
 
         textarea, select, input[type="number"] {
             width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
+            padding: 12px;
+            border: 2px solid #e8eaed;
+            border-radius: 8px;
             font-size: 14px;
             font-family: inherit;
-            background: var(--bg-card);
-            color: var(--text-primary);
             transition: all 0.2s;
         }
 
         textarea {
             resize: vertical;
             min-height: 120px;
-            font-family: 'Consolas', 'Monaco', monospace;
+            font-family: 'Consolas', monospace;
         }
 
         textarea:focus, select:focus, input:focus {
             outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(26,115,232,0.15);
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
         }
 
         .help-text {
-            font-size: 11px;
-            color: var(--text-secondary);
+            font-size: 12px;
+            color: #80868b;
             margin-top: 6px;
         }
 
-        /* Reference Section */
+        /* Reference Image Section */
         .reference-section {
-            background: var(--bg-card);
+            background: #f8f9fa;
             border-radius: 8px;
-            padding: 14px;
+            padding: 16px;
             margin-bottom: 20px;
-            border: 2px dashed var(--border-color);
-            transition: all 0.2s;
+            border: 2px dashed #dadce0;
         }
 
         .reference-section.has-image {
-            border-color: var(--primary-color);
-            background: rgba(26, 115, 232, 0.1);
+            border-color: #1a73e8;
+            background: #e8f0fe;
         }
 
         .reference-preview {
@@ -270,9 +212,9 @@
 
         .reference-preview img {
             max-width: 100%;
-            max-height: 180px;
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            max-height: 200px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
 
         .reference-actions {
@@ -292,133 +234,78 @@
 
         /* Folder Picker */
         .folder-picker {
-            background: var(--bg-card);
+            background: #f8f9fa;
             border-radius: 8px;
-            padding: 14px;
+            padding: 16px;
             margin-bottom: 20px;
-            border: 1px solid var(--border-color);
         }
 
         .folder-path {
             padding: 10px;
-            background: var(--bg-main);
+            background: white;
             border-radius: 6px;
-            font-size: 12px;
-            color: var(--text-secondary);
+            font-size: 13px;
+            color: #5f6368;
             margin: 10px 0;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            border: 1px solid var(--border-color);
-        }
-
-        /* Progress Bar */
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: var(--bg-card);
-            border-radius: 2px;
-            overflow: hidden;
-            margin-top: 16px;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary-color), var(--success-color));
-            transition: width 0.3s;
-        }
-
-        .image-counter {
-            text-align: center;
-            margin-top: 12px;
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
-
-        .image-counter strong {
-            color: var(--primary-color);
-            font-size: 20px;
         }
 
         /* Gallery */
-        .gallery-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px;
-        }
-
-        .gallery-container::-webkit-scrollbar { width: 10px; }
-        .gallery-container::-webkit-scrollbar-track { background: var(--bg-main); }
-        .gallery-container::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 5px;
-        }
-        .gallery-container::-webkit-scrollbar-thumb:hover { background: #4a5568; }
-
         .gallery {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+            padding: 4px;
         }
 
-        @media (min-width: 1400px) {
-            .gallery {
-                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            }
-        }
-
-        @media (min-width: 1800px) {
-            .gallery {
-                grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-            }
-        }
+        .gallery::-webkit-scrollbar { width: 8px; }
+        .gallery::-webkit-scrollbar-track { background: #f1f3f4; }
+        .gallery::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 4px; }
+        .gallery::-webkit-scrollbar-thumb:hover { background: #bdc1c6; }
 
         .image-card {
-            background: var(--bg-card);
+            background: white;
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             transition: all 0.3s;
-            border: 1px solid var(--border-color);
+            position: relative;
         }
 
         .image-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 12px 24px rgba(0,0,0,0.3);
-            border-color: var(--primary-color);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
         }
 
         .image-card img {
             width: 100%;
-            height: 240px;
+            height: 200px;
             object-fit: cover;
             cursor: pointer;
-            transition: transform 0.3s;
-        }
-
-        .image-card:hover img {
-            transform: scale(1.05);
         }
 
         .image-info {
-            padding: 14px;
+            padding: 12px;
         }
 
         .image-prompt {
             font-size: 13px;
-            color: var(--text-primary);
+            color: #5f6368;
             margin-bottom: 8px;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
-            line-height: 1.4;
         }
 
         .image-seed {
             font-size: 11px;
-            color: var(--text-secondary);
-            margin-bottom: 12px;
+            color: #80868b;
+            margin-bottom: 10px;
         }
 
         .image-actions {
@@ -429,37 +316,39 @@
 
         .btn-icon {
             padding: 6px 12px;
-            font-size: 11px;
-            border-radius: 5px;
-            border: 1px solid var(--border-color);
-            background: var(--bg-main);
-            color: var(--text-primary);
+            font-size: 12px;
+            border-radius: 6px;
+            border: 1px solid #dadce0;
+            background: white;
             cursor: pointer;
             transition: all 0.2s;
-            white-space: nowrap;
         }
 
         .btn-icon:hover {
-            background: var(--bg-hover);
-            border-color: var(--primary-color);
-            color: var(--primary-color);
-            transform: translateY(-1px);
+            background: #f8f9fa;
+            border-color: #1a73e8;
+            color: #1a73e8;
+        }
+
+        .btn-icon.active {
+            background: #e8f0fe;
+            border-color: #1a73e8;
+            color: #1a73e8;
         }
 
         /* Loading Card */
         .loading-card {
-            background: var(--bg-card);
+            background: #f8f9fa;
             border-radius: 12px;
-            padding: 60px 20px;
+            padding: 40px 20px;
             text-align: center;
-            border: 1px solid var(--border-color);
         }
 
         .spinner {
             width: 40px;
             height: 40px;
-            border: 4px solid var(--border-color);
-            border-top-color: var(--primary-color);
+            border: 4px solid #f1f3f4;
+            border-top-color: #1a73e8;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 16px;
@@ -470,34 +359,23 @@
         }
 
         .loading-text {
-            font-size: 13px;
-            color: var(--text-secondary);
+            font-size: 14px;
+            color: #5f6368;
         }
 
         /* Empty State */
         .empty-state {
             grid-column: 1 / -1;
             text-align: center;
-            padding: 100px 20px;
-            color: var(--text-secondary);
+            padding: 80px 20px;
+            color: #80868b;
         }
 
         .empty-state svg {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 24px;
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
             opacity: 0.3;
-            stroke: currentColor;
-        }
-
-        .empty-state h3 {
-            font-size: 18px;
-            margin-bottom: 12px;
-            color: var(--text-primary);
-        }
-
-        .empty-state p {
-            font-size: 14px;
         }
 
         /* Modal */
@@ -508,7 +386,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.85);
             z-index: 1000;
             padding: 40px;
             align-items: center;
@@ -525,23 +403,21 @@
 
         .modal-image {
             max-width: 100%;
-            max-height: 75vh;
+            max-height: 70vh;
             border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
         }
 
         .modal-info {
-            background: var(--bg-sidebar);
+            background: white;
             padding: 20px;
             border-radius: 12px;
             margin-top: 16px;
-            border: 1px solid var(--border-color);
         }
 
         .modal-prompt {
-            font-size: 15px;
-            color: var(--text-primary);
-            margin-bottom: 16px;
+            font-size: 16px;
+            color: #202124;
+            margin-bottom: 12px;
             font-weight: 600;
         }
 
@@ -553,74 +429,73 @@
 
         .modal-close {
             position: absolute;
-            top: -50px;
+            top: -40px;
             right: 0;
             background: white;
-            color: #000;
             border: none;
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            font-size: 24px;
+            font-size: 20px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            transition: all 0.2s;
         }
 
-        .modal-close:hover {
-            background: var(--primary-color);
-            color: white;
-            transform: rotate(90deg);
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e8eaed;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 16px;
         }
 
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .sidebar {
-                width: 320px;
-            }
-            .gallery {
-                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-            }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1a73e8, #34a853);
+            transition: width 0.3s;
         }
 
-        @media (max-width: 768px) {
-            .app-container {
-                flex-direction: column;
-            }
-            .sidebar {
-                width: 100%;
-                border-right: none;
-                border-bottom: 1px solid var(--border-color);
-                max-height: 50vh;
-            }
-            .gallery {
-                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            }
+        /* Image Counter */
+        .image-counter {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 14px;
+            color: #5f6368;
+        }
+
+        .image-counter strong {
+            color: #1a73e8;
+            font-size: 18px;
         }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2>🎨 Whisk AI Generator</h2>
-                <p class="sidebar-subtitle">Create stunning images with AI</p>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                <svg width="32" height="32" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M21 3H3c-1.11 0-2 .89-2 2v12c0 1.1.89 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.11-.9-2-2-2zm0 14H3V5h18v12z"/>
+                </svg>
+                Whisk AI
+            </h1>
+            <div class="header-actions">
+                <span id="statusBadge" class="status-badge waiting">Chờ kết nối</span>
+                <button class="btn btn-primary" onclick="launchChrome()">🚀 Khởi động</button>
+                <button class="btn btn-secondary" onclick="captureToken()" id="captureBtn" disabled>🔑 Lấy Token</button>
+                <button class="btn btn-secondary" onclick="resetSession()">🔄 Reset</button>
             </div>
+        </div>
 
-            <div class="sidebar-body">
-                <!-- Status & Actions -->
-                <div style="margin-bottom: 24px;">
-                    <span id="statusBadge" class="status-badge waiting">Chờ kết nối</span>
-                    <div style="display: flex; gap: 8px; margin-top: 12px;">
-                        <button class="btn btn-primary" onclick="launchChrome()" style="flex: 1;">🚀 Khởi động</button>
-                        <button class="btn btn-secondary" onclick="captureToken()" id="captureBtn" disabled>🔑 Token</button>
-                        <button class="btn btn-secondary" onclick="resetSession()">🔄</button>
-                    </div>
-                </div>
+        <div class="main-grid">
+            <!-- Left Panel: Controls -->
+            <div class="panel">
+                <h2>Tạo Ảnh</h2>
 
                 <!-- Style Preset -->
                 <div class="form-group">
@@ -643,10 +518,10 @@
 
                 <!-- Reference Image -->
                 <div class="reference-section" id="referenceSection">
-                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
+                    <label style="font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px;">
                         🖼️ Ảnh Tham Chiếu
                     </label>
-                    <div class="help-text">Click "Ref" ở ảnh để dùng làm tham chiếu</div>
+                    <div class="help-text">Click nút "Ref" ở ảnh bất kỳ để dùng làm tham chiếu</div>
                     <div id="referencePreview" class="reference-preview" style="display: none;">
                         <img id="referenceImg" src="" alt="Reference">
                         <div class="reference-actions">
@@ -667,9 +542,9 @@
                     <div class="form-group">
                         <label>📐 Tỷ Lệ</label>
                         <select id="aspectRatio">
-                            <option value="IMAGE_ASPECT_RATIO_LANDSCAPE">Ngang</option>
-                            <option value="IMAGE_ASPECT_RATIO_PORTRAIT">Dọc</option>
-                            <option value="IMAGE_ASPECT_RATIO_SQUARE">Vuông</option>
+                            <option value="IMAGE_ASPECT_RATIO_LANDSCAPE">Ngang (16:9)</option>
+                            <option value="IMAGE_ASPECT_RATIO_PORTRAIT">Dọc (9:16)</option>
+                            <option value="IMAGE_ASPECT_RATIO_SQUARE">Vuông (1:1)</option>
                         </select>
                     </div>
 
@@ -681,13 +556,13 @@
 
                 <!-- Folder Picker -->
                 <div class="folder-picker">
-                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
+                    <label style="font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px;">
                         📁 Thư Mục Lưu
                     </label>
                     <div class="folder-path" id="folderPath">Chưa chọn</div>
-                    <button class="btn btn-secondary" onclick="selectDownloadFolder()" style="width: 100%; margin-top: 8px;">Chọn Thư Mục</button>
+                    <button class="btn btn-secondary" onclick="selectDownloadFolder()" style="width: 100%;">Chọn Thư Mục</button>
                     <div style="margin-top: 12px;">
-                        <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <label style="font-size: 13px; display: flex; align-items: center; gap: 8px;">
                             <input type="checkbox" id="autoDownload">
                             Tự động tải về sau khi tạo
                         </label>
@@ -695,7 +570,7 @@
                 </div>
 
                 <!-- Generate Button -->
-                <button class="btn btn-success" onclick="generateBatch()" id="generateBtn" style="width: 100%; padding: 14px; font-size: 15px;" disabled>
+                <button class="btn btn-success" onclick="generateBatch()" id="generateBtn" style="width: 100%; padding: 14px; font-size: 16px;" disabled>
                     ✨ Tạo Ảnh
                 </button>
 
@@ -707,38 +582,21 @@
                     Đã tạo: <strong id="imageCount">0</strong> ảnh
                 </div>
             </div>
-        </aside>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Header -->
-            <header class="header">
-                <div class="header-title">
-                    <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M21 3H3c-1.11 0-2 .89-2 2v12c0 1.1.89 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.11-.9-2-2-2zm0 14H3V5h18v12z"/>
-                    </svg>
-                    Thư Viện Ảnh
-                </div>
-                <div class="header-actions">
-                    <div style="font-size: 13px; color: var(--text-secondary);">
-                        Full Screen Gallery
-                    </div>
-                </div>
-            </header>
-
-            <!-- Gallery -->
-            <div class="gallery-container">
+            <!-- Right Panel: Gallery -->
+            <div class="panel">
+                <h2>🖼️ Thư Viện Ảnh</h2>
                 <div class="gallery" id="gallery">
                     <div class="empty-state">
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
-                        <h3>Chưa có ảnh nào</h3>
-                        <p>Nhập mô tả ở sidebar và nhấn "Tạo Ảnh" để bắt đầu</p>
+                        <p>Chưa có ảnh nào</p>
+                        <p style="font-size: 13px; margin-top: 12px;">Nhập mô tả và nhấn "Tạo Ảnh"</p>
                     </div>
                 </div>
             </div>
-        </main>
+        </div>
     </div>
 
     <!-- Modal -->
@@ -829,7 +687,7 @@
 
         function updateStatus(type, text) {
             const badge = document.getElementById('statusBadge');
-            badge.className = `status-badge ${type}`;
+            badge.className = \`status-badge \${type}\`;
             badge.textContent = text;
         }
 
@@ -893,13 +751,13 @@
 
                 // Add style to prompt
                 if (styleText) {
-                    prompt = `${prompt}, ${styleText}`;
+                    prompt = \`\${prompt}, \${styleText}\`;
                 }
 
                 const progress = ((i + 1) / prompts.length) * 100;
                 document.getElementById('progressFill').style.width = progress + '%';
 
-                const loadingId = `loading-${Date.now()}`;
+                const loadingId = \`loading-\${Date.now()}\`;
                 addLoadingCard(loadingId, prompts[i]);
 
                 try {
@@ -915,7 +773,7 @@
                             await autoDownloadImage(result.imageUrl, prompts[i], result.seed);
                         }
                     } else {
-                        alert(`Lỗi: ${result.error}`);
+                        alert(\`Lỗi: \${result.error}\`);
                     }
                 } catch (err) {
                     removeLoadingCard(loadingId);
@@ -959,7 +817,7 @@
         }
 
         async function regenerateImage(prompt, aspectRatio, seed) {
-            const loadingId = `loading-regen-${Date.now()}`;
+            const loadingId = \`loading-regen-\${Date.now()}\`;
             addLoadingCard(loadingId, prompt);
 
             try {
@@ -969,7 +827,7 @@
                 if (result.success) {
                     addImageToGallery(result.imageUrl, prompt, result.seed, result.generationId);
                 } else {
-                    alert(`Lỗi: ${result.error}`);
+                    alert(\`Lỗi: \${result.error}\`);
                 }
             } catch (err) {
                 removeLoadingCard(loadingId);
@@ -987,10 +845,10 @@
             const card = document.createElement('div');
             card.className = 'loading-card';
             card.id = id;
-            card.innerHTML = `
+            card.innerHTML = \`
                 <div class="spinner"></div>
-                <div class="loading-text">${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}</div>
-            `;
+                <div class="loading-text">\${prompt.substring(0, 50)}\${prompt.length > 50 ? '...' : ''}</div>
+            \`;
             gallery.insertBefore(card, gallery.firstChild);
         }
 
@@ -1006,27 +864,27 @@
             const gallery = document.getElementById('gallery');
             const card = document.createElement('div');
             card.className = 'image-card';
-            card.innerHTML = `
-                <img src="${imageUrl}" alt="${prompt}" onclick="openModal({id: ${image.id}})">
+            card.innerHTML = \`
+                <img src="\${imageUrl}" alt="\${prompt}" onclick="openModal({id: \${image.id}})">
                 <div class="image-info">
-                    <div class="image-prompt">${prompt}</div>
-                    <div class="image-seed">Seed: ${seed || 'auto'}</div>
+                    <div class="image-prompt">\${prompt}</div>
+                    <div class="image-seed">Seed: \${seed || 'auto'}</div>
                     <div class="image-actions">
-                        <button class="btn-icon" onclick="setReferenceImage('${imageUrl}', '${prompt.replace(/'/g, "\\'")}', ${seed}, '${generationId || ''}')" title="Dùng làm tham chiếu">
+                        <button class="btn-icon" onclick="setReferenceImage('\${imageUrl}', '\${prompt.replace(/'/g, "\\\\'")}', \${seed}, '\${generationId || ''}')" title="Dùng làm tham chiếu">
                             🖼️ Ref
                         </button>
-                        <button class="btn-icon" onclick="regenerateImage('${prompt.replace(/'/g, "\\'")}', '${document.getElementById('aspectRatio').value}', ${seed})" title="Tạo lại">
+                        <button class="btn-icon" onclick="regenerateImage('\${prompt.replace(/'/g, "\\\\'")}', '\${document.getElementById('aspectRatio').value}', \${seed})" title="Tạo lại">
                             🔄 Regen
                         </button>
-                        <button class="btn-icon" onclick="downloadImage('${imageUrl}', '${prompt.replace(/'/g, "\\'")}', ${seed})" title="Tải về">
-                            📥 Download
+                        <button class="btn-icon" onclick="downloadImage('\${imageUrl}', '\${prompt.replace(/'/g, "\\\\'")}', \${seed})" title="Tải về">
+                            📥
                         </button>
-                        <button class="btn-icon" onclick="deleteImage(${image.id})" title="Xóa">
-                            🗑️ Delete
+                        <button class="btn-icon" onclick="deleteImage(\${image.id})" title="Xóa">
+                            🗑️
                         </button>
                     </div>
                 </div>
-            `;
+            \`;
             gallery.insertBefore(card, gallery.firstChild);
         }
 
@@ -1046,42 +904,41 @@
             gallery.innerHTML = '';
 
             if (images.length === 0) {
-                gallery.innerHTML = `
+                gallery.innerHTML = \`
                     <div class="empty-state">
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
-                        <h3>Chưa có ảnh nào</h3>
-                        <p>Nhập mô tả ở sidebar và nhấn "Tạo Ảnh" để bắt đầu</p>
+                        <p>Chưa có ảnh nào</p>
                     </div>
-                `;
+                \`;
                 return;
             }
 
             images.forEach(img => {
                 const card = document.createElement('div');
                 card.className = 'image-card';
-                card.innerHTML = `
-                    <img src="${img.imageUrl}" alt="${img.prompt}" onclick="openModal({id: ${img.id}})">
+                card.innerHTML = \`
+                    <img src="\${img.imageUrl}" alt="\${img.prompt}" onclick="openModal({id: \${img.id}})">
                     <div class="image-info">
-                        <div class="image-prompt">${img.prompt}</div>
-                        <div class="image-seed">Seed: ${img.seed || 'auto'}</div>
+                        <div class="image-prompt">\${img.prompt}</div>
+                        <div class="image-seed">Seed: \${img.seed || 'auto'}</div>
                         <div class="image-actions">
-                            <button class="btn-icon" onclick="setReferenceImage('${img.imageUrl}', '${img.prompt.replace(/'/g, "\\'")}', ${img.seed}, '${img.generationId || ''}')" title="Dùng làm tham chiếu">
+                            <button class="btn-icon" onclick="setReferenceImage('\${img.imageUrl}', '\${img.prompt.replace(/'/g, "\\\\'")}', \${img.seed}, '\${img.generationId || ''}')" title="Dùng làm tham chiếu">
                                 🖼️ Ref
                             </button>
-                            <button class="btn-icon" onclick="regenerateImage('${img.prompt.replace(/'/g, "\\'")}', '${document.getElementById('aspectRatio').value}', ${img.seed})" title="Tạo lại">
+                            <button class="btn-icon" onclick="regenerateImage('\${img.prompt.replace(/'/g, "\\\\'")}', '\${document.getElementById('aspectRatio').value}', \${img.seed})" title="Tạo lại">
                                 🔄 Regen
                             </button>
-                            <button class="btn-icon" onclick="downloadImage('${img.imageUrl}', '${img.prompt.replace(/'/g, "\\'")}', ${img.seed})" title="Tải về">
-                                📥 Download
+                            <button class="btn-icon" onclick="downloadImage('\${img.imageUrl}', '\${img.prompt.replace(/'/g, "\\\\'")}', \${img.seed})" title="Tải về">
+                                📥
                             </button>
-                            <button class="btn-icon" onclick="deleteImage(${img.id})" title="Xóa">
-                                🗑️ Delete
+                            <button class="btn-icon" onclick="deleteImage(\${img.id})" title="Xóa">
+                                🗑️
                             </button>
                         </div>
                     </div>
-                `;
+                \`;
                 gallery.appendChild(card);
             });
         }
@@ -1097,7 +954,7 @@
 
             currentModalImage = image;
             document.getElementById('modalImage').src = image.imageUrl;
-            document.getElementById('modalPrompt').textContent = `"${image.prompt}" (Seed: ${image.seed || 'auto'})`;
+            document.getElementById('modalPrompt').textContent = \`"\${image.prompt}" (Seed: \${image.seed || 'auto'})\`;
             document.getElementById('imageModal').classList.add('active');
         }
 
@@ -1116,7 +973,7 @@
 
         // Download
         async function downloadImage(imageUrl, prompt, seed) {
-            const filename = `whisk_${seed || 'auto'}_${Date.now()}.jpg`;
+            const filename = \`whisk_\${seed || 'auto'}_\${Date.now()}.jpg\`;
 
             if (downloadFolderHandle) {
                 try {
@@ -1137,7 +994,7 @@
         async function autoDownloadImage(imageUrl, prompt, seed) {
             if (!downloadFolderHandle) return;
 
-            const filename = `whisk_${seed || 'auto'}_${Date.now()}.jpg`;
+            const filename = \`whisk_\${seed || 'auto'}_\${Date.now()}.jpg\`;
             try {
                 await saveToFolder(imageUrl, filename);
             } catch (err) {
