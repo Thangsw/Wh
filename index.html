@@ -680,6 +680,22 @@
                 </div>
 
                 <!-- Folder Picker -->
+                <!-- Batch Reference Options -->
+                <div class="folder-picker">
+                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
+                        🔗 Batch Reference Mode
+                    </label>
+                    <select id="batchReferenceMode" style="margin-bottom: 12px;">
+                        <option value="none">Không dùng reference</option>
+                        <option value="first">Dùng ảnh đầu làm reference</option>
+                        <option value="chain">Chain - Mỗi ảnh reference ảnh trước</option>
+                    </select>
+                    <div class="help-text">
+                        - Ảnh đầu: Giữ style đồng nhất cho tất cả<br>
+                        - Chain: Tiến hóa dần từ ảnh này sang ảnh khác
+                    </div>
+                </div>
+
                 <div class="folder-picker">
                     <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">
                         📁 Thư Mục Lưu
@@ -884,9 +900,14 @@
             const autoDownload = document.getElementById('autoDownload').checked;
             const style = document.getElementById('stylePreset').value;
             const styleText = style ? stylePresets[style] : '';
+            const batchRefMode = document.getElementById('batchReferenceMode').value;
 
             document.getElementById('generateBtn').disabled = true;
             document.getElementById('progressBar').style.display = 'block';
+
+            // Store first/previous image for batch reference
+            let batchReferenceImage = null;
+            let firstImageResult = null;
 
             for (let i = 0; i < prompts.length; i++) {
                 let prompt = prompts[i].trim();
@@ -904,12 +925,43 @@
 
                 try {
                     const seed = baseSeed ? baseSeed + i : null;
-                    const result = await generateSingle(prompt, aspectRatio, seed);
+
+                    // Determine reference for this image based on mode
+                    let currentReference = null;
+
+                    if (i === 0) {
+                        // First image: use manual reference if set
+                        currentReference = referenceImage;
+                    } else {
+                        // Subsequent images: apply batch reference mode
+                        if (batchRefMode === 'first' && firstImageResult) {
+                            // Use first image as reference for all
+                            currentReference = {
+                                imageUrl: firstImageResult.imageUrl,
+                                generationId: firstImageResult.generationId
+                            };
+                        } else if (batchRefMode === 'chain' && batchReferenceImage) {
+                            // Use previous image as reference (chain)
+                            currentReference = batchReferenceImage;
+                        }
+                        // else: batchRefMode === 'none' -> no reference
+                    }
+
+                    const result = await generateSingleWithReference(prompt, aspectRatio, seed, currentReference);
 
                     removeLoadingCard(loadingId);
 
                     if (result.success) {
                         addImageToGallery(result.imageUrl, prompts[i], result.seed, result.generationId);
+
+                        // Store for batch reference
+                        if (i === 0) {
+                            firstImageResult = result;
+                        }
+                        batchReferenceImage = {
+                            imageUrl: result.imageUrl,
+                            generationId: result.generationId
+                        };
 
                         if (autoDownload && downloadFolderHandle) {
                             await autoDownloadImage(result.imageUrl, prompts[i], result.seed);
@@ -930,6 +982,35 @@
             document.getElementById('progressBar').style.display = 'none';
             document.getElementById('generateBtn').disabled = false;
             updateImageCount();
+        }
+
+        // Generate single image with optional reference override
+        async function generateSingleWithReference(prompt, aspectRatio, seed, refImage) {
+            const payload = { prompt, aspectRatio };
+            if (seed) payload.seed = seed;
+
+            // Use provided reference or fall back to global reference
+            const useReference = refImage || referenceImage;
+
+            if (useReference) {
+                const res = await fetch('/api/edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        referenceImage: useReference.imageUrl,
+                        aspectRatio: aspectRatio
+                    })
+                });
+                return await res.json();
+            } else {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                return await res.json();
+            }
         }
 
         async function generateSingle(prompt, aspectRatio, seed) {
@@ -963,7 +1044,7 @@
             addLoadingCard(loadingId, prompt);
 
             try {
-                const result = await generateSingle(prompt, aspectRatio, seed);
+                const result = await generateSingleWithReference(prompt, aspectRatio, seed, null);
                 removeLoadingCard(loadingId);
 
                 if (result.success) {
