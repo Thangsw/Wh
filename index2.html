@@ -700,6 +700,200 @@
                 grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             }
         }
+
+        /* ==================== TABS + VIDEO TAB ==================== */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            padding: 0 24px;
+            background: var(--bg-sidebar);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .tab:hover { color: var(--text-primary); }
+        .tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+
+        .tab-content { display: none; flex: 1; overflow: hidden; }
+        .tab-content.active { display: flex; flex-direction: column; }
+
+        /* Video Layout */
+        .video-layout {
+            display: flex;
+            gap: 20px;
+            height: 100%;
+            padding: 24px;
+            overflow: hidden;
+        }
+
+        .prompt-panel {
+            width: 300px;
+            background: var(--bg-sidebar);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .scenes {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 12px;
+        }
+
+        .scene-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            background: var(--bg-card);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .scene-image {
+            position: relative;
+            width: 200px;
+            height: 150px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid var(--border-color);
+            flex-shrink: 0;
+            background: var(--bg-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scene-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .scene-image .remove-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            background: rgba(234, 67, 53, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 20px;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        .scene-image .remove-btn:hover {
+            background: var(--danger-color);
+        }
+
+        .scene-counter {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: var(--primary-color);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        .scene-prompt {
+            flex: 1;
+        }
+
+        .scene-prompt textarea {
+            width: 100%;
+            min-height: 80px;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .scene-prompt.extend {
+            background: rgba(234, 67, 53, 0.1);
+            border: 1px solid var(--danger-color);
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .arrow {
+            font-size: 24px;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        /* Video Progress */
+        .video-progress {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Variant Viewer */
+        .variant-viewer {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .variant-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: center;
+            margin: 16px 0;
+        }
+
+        .variant-controls button {
+            padding: 8px 16px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .variant-controls button:hover {
+            background: var(--primary-hover);
+        }
+
+        .variant-controls span {
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 600;
+            min-width: 60px;
+        }
     </style>
 </head>
 <body>
@@ -874,24 +1068,62 @@
                     <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M21 3H3c-1.11 0-2 .89-2 2v12c0 1.1.89 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.11-.9-2-2-2zm0 14H3V5h18v12z"/>
                     </svg>
-                    Thư Viện Ảnh
+                    Whisk AI + Veo3
                 </div>
                 <div class="header-actions">
-                    <div style="font-size: 13px; color: var(--text-secondary);">
-                        Full Screen Gallery
-                    </div>
+                    <button class="btn btn-secondary" onclick="VideoModule.saveCurrentImages()" style="font-size: 12px; padding: 6px 12px;">💾 Lưu</button>
+                    <button class="btn btn-success" onclick="VideoModule.confirmMoveToVideo()" style="font-size: 12px; padding: 6px 12px;">➡️ Chuyển sang Video</button>
                 </div>
             </header>
 
-            <!-- Gallery -->
-            <div class="gallery-container">
-                <div class="gallery" id="gallery">
-                    <div class="empty-state">
-                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                        <h3>Chưa có ảnh nào</h3>
-                        <p>Nhập mô tả ở sidebar và nhấn "Tạo Ảnh" để bắt đầu</p>
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="VideoModule.switchTab('images', event)">📷 Images</button>
+                <button class="tab" onclick="VideoModule.switchTab('video', event)">🎬 Video</button>
+            </div>
+
+            <!-- Images Tab -->
+            <div id="imagesTab" class="tab-content active">
+                <!-- Gallery -->
+                <div class="gallery-container">
+                    <div class="gallery" id="gallery">
+                        <div class="empty-state">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <h3>Chưa có ảnh nào</h3>
+                            <p>Nhập mô tả ở sidebar và nhấn "Tạo Ảnh" để bắt đầu</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Tab -->
+            <div id="videoTab" class="tab-content">
+                <div class="video-layout">
+                    <!-- Prompt Panel -->
+                    <div class="prompt-panel">
+                        <h3 style="font-size: 16px; margin-bottom: 12px;">📝 Prompts</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Mỗi dòng = 1 prompt</p>
+                        <textarea id="masterPrompts" style="min-height: 200px; width: 100%; padding: 10px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-family: inherit; resize: vertical;" placeholder="Prompt 1&#10;Prompt 2&#10;Prompt 3&#10;..."></textarea>
+                        <button class="btn btn-primary" onclick="VideoModule.loadPrompts()" style="width: 100%; margin-top: 12px;">📥 Load Prompts</button>
+
+                        <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--border-color);">
+
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px;">Độ dài video (giây)</label>
+                            <input type="number" id="videoLength" value="8" min="2" max="16" style="width: 100%; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary);">
+                        </div>
+
+                        <button class="btn btn-success" onclick="VideoModule.generateAllVideos()" style="width: 100%;">🎬 Gen All Videos</button>
+                    </div>
+
+                    <!-- Scenes Area -->
+                    <div class="scenes" id="videoScenes">
+                        <p style="text-align: center; color: var(--text-secondary); padding: 60px 20px; font-size: 14px;">
+                            Chưa có scenes.<br><br>
+                            Hãy tạo ảnh ở tab <strong>Images</strong>, sau đó nhấn <strong>"Chuyển sang Video"</strong>.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -2533,6 +2765,12 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeModal();
         });
+
+        // Make images globally accessible for video module
+        window.images = images;
     </script>
+
+    <!-- Video Module -->
+    <script src="video.js"></script>
 </body>
 </html>
