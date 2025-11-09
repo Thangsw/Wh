@@ -943,71 +943,83 @@ app.post('/api/logs/clear', async (req, res) => {
 // VEO3 VIDEO GENERATION ENDPOINTS
 // ============================================
 
-// Veo3 state
+// Veo3 state - có thể dùng manual projectId nếu tạo tự động không được
 let veo3Session = {
-  projectId: null,
+  projectId: null, // Hoặc set manual: 'your-project-id-here'
   sceneId: null,
-  createdAt: null
+  createdAt: null,
+  manualProjectId: null // User có thể set qua API
 };
 
-// Create Veo3 project
+// Set manual project ID (workaround nếu không tạo được tự động)
+app.post('/api/veo3/set-project', async (req, res) => {
+  try {
+    const { projectId } = req.body;
+    if (!projectId) {
+      return res.json({ success: false, error: 'No projectId provided' });
+    }
+
+    veo3Session.projectId = projectId;
+    veo3Session.manualProjectId = projectId;
+    veo3Session.createdAt = Date.now();
+
+    log(`✓ Manual project ID set: ${projectId}`);
+    res.json({ success: true, projectId, message: 'Manual project ID set' });
+  } catch (err) {
+    log(`✗ Set project failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Create Veo3 project (tự động)
 app.post('/api/veo3/create-project', async (req, res) => {
   try {
+    // Nếu đã có manual project, dùng luôn
+    if (veo3Session.manualProjectId) {
+      log(`Using existing manual project: ${veo3Session.manualProjectId}`);
+      return res.json({ success: true, projectId: veo3Session.manualProjectId, manual: true });
+    }
+
     log('Creating Veo3 project...');
 
     const token = await getAccessToken();
 
-    // Try batch format (new API style)
-    try {
-      const response = await axios.post(
-        'https://labs.google/fx/api/trpc/project.create?batch=1',
-        {
-          "0": { json: { toolName: 'PINHOLE' } }
+    // Try standard TRPC format
+    const response = await axios.post(
+      'https://labs.google/fx/api/trpc/project.create',
+      { json: { toolName: 'PINHOLE' } },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Referer': 'https://labs.google/fx/vi/tools/flow',
+          'Origin': 'https://labs.google/fx'
         },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Referer': 'https://labs.google/fx/tools/flow',
-            'Origin': 'https://labs.google/fx'
-          }
-        }
-      );
+        timeout: 30000
+      }
+    );
 
-      const projectId = response.data[0].result.data.json.projectId;
-      veo3Session.projectId = projectId;
-      veo3Session.createdAt = Date.now();
+    const projectId = response.data.result.data.json.projectId;
+    veo3Session.projectId = projectId;
+    veo3Session.createdAt = Date.now();
 
-      log(`✓ Veo3 project created (batch): ${projectId}`);
-      return res.json({ success: true, projectId });
-    } catch (batchErr) {
-      log(`Batch format failed: ${batchErr.message}, trying standard format...`);
-
-      // Fallback: standard format
-      const response = await axios.post(
-        'https://labs.google/fx/api/trpc/project.create',
-        { json: { toolName: 'PINHOLE' } },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Referer': 'https://labs.google/fx/tools/flow',
-            'Origin': 'https://labs.google/fx'
-          }
-        }
-      );
-
-      const projectId = response.data.result.data.json.projectId;
-      veo3Session.projectId = projectId;
-      veo3Session.createdAt = Date.now();
-
-      log(`✓ Veo3 project created (standard): ${projectId}`);
-      return res.json({ success: true, projectId });
-    }
+    log(`✓ Veo3 project created: ${projectId}`);
+    res.json({ success: true, projectId });
   } catch (err) {
     log(`✗ Create project failed: ${err.message}`, 'error');
-    log(`Error details: ${JSON.stringify(err.response?.data || {})}`);
-    res.json({ success: false, error: err.message, details: err.response?.data });
+    if (err.response?.data) {
+      log(`Error response: ${JSON.stringify(err.response.data)}`);
+    }
+
+    // Gợi ý workaround
+    const errorMsg = `Cannot auto-create project. Please create manually at https://labs.google/fx/tools/flow and use /api/veo3/set-project`;
+
+    res.json({
+      success: false,
+      error: err.message,
+      details: err.response?.data,
+      workaround: errorMsg
+    });
   }
 });
 

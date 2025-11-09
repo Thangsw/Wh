@@ -1110,6 +1110,20 @@
 
                         <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--border-color);">
 
+                        <!-- Manual Project ID (workaround) -->
+                        <div style="margin-bottom: 16px; padding: 12px; background: rgba(251, 188, 5, 0.1); border: 1px solid rgba(251, 188, 5, 0.3); border-radius: 6px;">
+                            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: rgba(251, 188, 5, 1);">
+                                ⚠️ Manual Project ID
+                            </label>
+                            <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">
+                                Nếu tự động tạo project lỗi, hãy tạo thủ công tại <a href="https://labs.google/fx/tools/flow" target="_blank" style="color: var(--primary-color);">labs.google/fx</a> và paste ID vào đây:
+                            </p>
+                            <input type="text" id="manualProjectId" placeholder="VD: projects/123456789" style="width: 100%; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 12px; margin-bottom: 8px;">
+                            <button class="btn btn-secondary" onclick="setManualProjectId()" style="width: 100%; font-size: 12px; padding: 6px;">
+                                📌 Set Project ID
+                            </button>
+                        </div>
+
                         <div style="margin-bottom: 16px;">
                             <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px;">Độ dài video (giây)</label>
                             <input type="number" id="videoLength" value="8" min="2" max="16" style="width: 100%; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary);">
@@ -2768,6 +2782,35 @@
 
         // Make images globally accessible for video module
         window.images = images;
+
+        // ==================== VEO3 MANUAL PROJECT ID ====================
+        async function setManualProjectId() {
+            const projectId = document.getElementById('manualProjectId').value.trim();
+
+            if (!projectId) {
+                alert('Vui lòng nhập Project ID!');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/veo3/set-project', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ projectId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`✅ Đã set Project ID: ${projectId}\n\nBây giờ có thể gen videos!`);
+                    document.getElementById('manualProjectId').style.borderColor = 'var(--success-color)';
+                } else {
+                    alert(`❌ Lỗi: ${data.error}`);
+                }
+            } catch (err) {
+                alert(`❌ Lỗi: ${err.message}`);
+            }
+        }
     </script>
 
     <!-- Video Module -->
