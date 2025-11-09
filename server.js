@@ -943,30 +943,44 @@ app.post('/api/logs/clear', async (req, res) => {
 // VEO3 VIDEO GENERATION ENDPOINTS
 // ============================================
 
-// Veo3 state - có thể dùng manual projectId nếu tạo tự động không được
+// Veo3 state - manual projectId và sceneId (ngon.js approach)
 let veo3Session = {
-  projectId: null, // Hoặc set manual: 'your-project-id-here'
+  projectId: null,
   sceneId: null,
   createdAt: null,
-  manualProjectId: null // User có thể set qua API
+  manualProjectId: null, // User set qua API
+  manualSceneId: null // User set qua API
 };
 
-// Set manual project ID (workaround nếu không tạo được tự động)
+// Set manual project ID and scene ID (theo cách ngon.js)
 app.post('/api/veo3/set-project', async (req, res) => {
   try {
-    const { projectId } = req.body;
+    const { projectId, sceneId } = req.body;
+
     if (!projectId) {
       return res.json({ success: false, error: 'No projectId provided' });
     }
 
+    if (!sceneId) {
+      return res.json({ success: false, error: 'No sceneId provided. Both projectId and sceneId are required!' });
+    }
+
     veo3Session.projectId = projectId;
+    veo3Session.sceneId = sceneId;
     veo3Session.manualProjectId = projectId;
+    veo3Session.manualSceneId = sceneId;
     veo3Session.createdAt = Date.now();
 
     log(`✓ Manual project ID set: ${projectId}`);
-    res.json({ success: true, projectId, message: 'Manual project ID set' });
+    log(`✓ Manual scene ID set: ${sceneId}`);
+    res.json({
+      success: true,
+      projectId,
+      sceneId,
+      message: 'Manual project ID and scene ID set successfully'
+    });
   } catch (err) {
-    log(`✗ Set project failed: ${err.message}`, 'error');
+    log(`✗ Set project/scene failed: ${err.message}`, 'error');
     res.json({ success: false, error: err.message });
   }
 });

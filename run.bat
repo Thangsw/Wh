@@ -171,12 +171,20 @@ echo.
 echo Server log: %LOG_FILE%
 echo.
 
-:: Run server (output shown in console)
-node server.js
+:: Run server with detailed logging (output to both console and log file)
+echo ============================================================ >> "%LOG_FILE%"
+echo SERVER OUTPUT - START >> "%LOG_FILE%"
+echo ============================================================ >> "%LOG_FILE%"
+
+:: Use PowerShell to tee output to both console and log file
+powershell -Command "& { node server.js 2>&1 | Tee-Object -FilePath '%LOG_FILE%' -Append }"
 
 :: If server stops, log it
 echo.
 echo. >> "%LOG_FILE%"
+echo ============================================================ >> "%LOG_FILE%"
+echo SERVER OUTPUT - END >> "%LOG_FILE%"
+echo ============================================================ >> "%LOG_FILE%"
 echo [%time%] Server da dung >> "%LOG_FILE%"
 echo End Time: %date% %time% >> "%LOG_FILE%"
 

@@ -1110,17 +1110,18 @@
 
                         <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--border-color);">
 
-                        <!-- Manual Project ID (workaround) -->
+                        <!-- Manual Project ID & Scene ID (theo ngon.js) -->
                         <div style="margin-bottom: 16px; padding: 12px; background: rgba(251, 188, 5, 0.1); border: 1px solid rgba(251, 188, 5, 0.3); border-radius: 6px;">
                             <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: rgba(251, 188, 5, 1);">
-                                ⚠️ Manual Project ID
+                                ⚠️ Manual Project ID & Scene ID
                             </label>
                             <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">
-                                Nếu tự động tạo project lỗi, hãy tạo thủ công tại <a href="https://labs.google/fx/tools/flow" target="_blank" style="color: var(--primary-color);">labs.google/fx</a> và paste ID vào đây:
+                                Tạo project tại <a href="https://labs.google/fx/tools/flow" target="_blank" style="color: var(--primary-color);">labs.google/fx</a>, mở project URL, bật DevTools (F12) → Network tab → tìm request "searchProjectScenes" để lấy sceneId:
                             </p>
-                            <input type="text" id="manualProjectId" placeholder="VD: projects/123456789" style="width: 100%; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 12px; margin-bottom: 8px;">
+                            <input type="text" id="manualProjectId" placeholder="Project ID (VD: f47ac10b-58cc-4372-a567-0e02b2c3d479)" style="width: 100%; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 12px; margin-bottom: 8px;">
+                            <input type="text" id="manualSceneId" placeholder="Scene ID (bắt buộc! Copy từ DevTools)" style="width: 100%; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 12px; margin-bottom: 8px;">
                             <button class="btn btn-secondary" onclick="setManualProjectId()" style="width: 100%; font-size: 12px; padding: 6px;">
-                                📌 Set Project ID
+                                📌 Set Project & Scene ID
                             </button>
                         </div>
 
@@ -2783,12 +2784,18 @@
         // Make images globally accessible for video module
         window.images = images;
 
-        // ==================== VEO3 MANUAL PROJECT ID ====================
+        // ==================== VEO3 MANUAL PROJECT & SCENE ID (theo ngon.js) ====================
         async function setManualProjectId() {
             const projectId = document.getElementById('manualProjectId').value.trim();
+            const sceneId = document.getElementById('manualSceneId').value.trim();
 
             if (!projectId) {
-                alert('Vui lòng nhập Project ID!');
+                alert('⚠️ Vui lòng nhập Project ID!');
+                return;
+            }
+
+            if (!sceneId) {
+                alert('⚠️ Vui lòng nhập Scene ID!\n\nCách lấy sceneId:\n1. Mở project tại labs.google/fx/tools/flow\n2. Bật DevTools (F12)\n3. Tab Network → tìm request "searchProjectScenes"\n4. Xem Response → copy sceneId');
                 return;
             }
 
@@ -2796,16 +2803,19 @@
                 const response = await fetch('/api/veo3/set-project', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ projectId })
+                    body: JSON.stringify({ projectId, sceneId })
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    alert(`✅ Đã set Project ID: ${projectId}\n\nBây giờ có thể gen videos!`);
+                    alert(`✅ Đã set thành công!\n\nProject ID: ${projectId}\nScene ID: ${sceneId}\n\nBây giờ có thể gen videos!`);
                     document.getElementById('manualProjectId').style.borderColor = 'var(--success-color)';
+                    document.getElementById('manualSceneId').style.borderColor = 'var(--success-color)';
                 } else {
                     alert(`❌ Lỗi: ${data.error}`);
+                    document.getElementById('manualProjectId').style.borderColor = 'var(--danger-color)';
+                    document.getElementById('manualSceneId').style.borderColor = 'var(--danger-color)';
                 }
             } catch (err) {
                 alert(`❌ Lỗi: ${err.message}`);
