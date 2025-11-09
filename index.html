@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whisk AI - Image Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f8f9fa;
+            color: #212529;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a73e8;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge.ready {
+            background: #e6f4ea;
+            color: #1e8e3e;
+        }
+
+        .status-badge.waiting {
+            background: #fef7e0;
+            color: #f9ab00;
+        }
+
+        .status-badge::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #1a73e8;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #1557b0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(26,115,232,0.3);
+        }
+
+        .btn-secondary {
+            background: #f1f3f4;
+            color: #5f6368;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #e8eaed;
+        }
+
+        .btn-success {
+            background: #34a853;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #2d8e47;
+        }
+
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .panel h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #202124;
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #5f6368;
+            margin-bottom: 8px;
+        }
+
+        textarea, select, input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e8eaed;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: 'Consolas', monospace;
+        }
+
+        textarea:focus, select:focus, input:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #80868b;
+            margin-top: 6px;
+        }
+
+        /* Reference Image Section */
+        .reference-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border: 2px dashed #dadce0;
+        }
+
+        .reference-section.has-image {
+            border-color: #1a73e8;
+            background: #e8f0fe;
+        }
+
+        .reference-preview {
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        .reference-preview img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .reference-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        /* Settings Grid */
+        .settings-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        /* Folder Picker */
+        .folder-picker {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .folder-path {
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #5f6368;
+            margin: 10px 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Gallery */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+            padding: 4px;
+        }
+
+        .gallery::-webkit-scrollbar { width: 8px; }
+        .gallery::-webkit-scrollbar-track { background: #f1f3f4; }
+        .gallery::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 4px; }
+        .gallery::-webkit-scrollbar-thumb:hover { background: #bdc1c6; }
+
+        .image-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .image-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+
+        .image-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            cursor: pointer;
+        }
+
+        .image-info {
+            padding: 12px;
+        }
+
+        .image-prompt {
+            font-size: 13px;
+            color: #5f6368;
+            margin-bottom: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .image-seed {
+            font-size: 11px;
+            color: #80868b;
+            margin-bottom: 10px;
+        }
+
+        .image-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .btn-icon {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+            border: 1px solid #dadce0;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            background: #f8f9fa;
+            border-color: #1a73e8;
+            color: #1a73e8;
+        }
+
+        .btn-icon.active {
+            background: #e8f0fe;
+            border-color: #1a73e8;
+            color: #1a73e8;
+        }
+
+        /* Loading Card */
+        .loading-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f1f3f4;
+            border-top-color: #1a73e8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 14px;
+            color: #5f6368;
+        }
+
+        /* Empty State */
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 80px 20px;
+            color: #80868b;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
+            opacity: 0.3;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            padding: 40px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            max-width: 90%;
+            max-height: 90vh;
+            position: relative;
+        }
+
+        .modal-image {
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 12px;
+        }
+
+        .modal-info {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 16px;
+        }
+
+        .modal-prompt {
+            font-size: 16px;
+            color: #202124;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            background: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e8eaed;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 16px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1a73e8, #34a853);
+            transition: width 0.3s;
+        }
+
+        /* Image Counter */
+        .image-counter {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 14px;
+            color: #5f6368;
+        }
+
+        .image-counter strong {
+            color: #1a73e8;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                <svg width="32" height="32" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M21 3H3c-1.11 0-2 .89-2 2v12c0 1.1.89 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.11-.9-2-2-2zm0 14H3V5h18v12z"/>
+                </svg>
+                Whisk AI
+            </h1>
+            <div class="header-actions">
+                <span id="statusBadge" class="status-badge waiting">Chờ kết nối</span>
+                <button class="btn btn-primary" onclick="launchChrome()">🚀 Khởi động</button>
+                <button class="btn btn-secondary" onclick="captureToken()" id="captureBtn" disabled>🔑 Lấy Token</button>
+                <button class="btn btn-secondary" onclick="resetSession()">🔄 Reset</button>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- Left Panel: Controls -->
+            <div class="panel">
+                <h2>Tạo Ảnh</h2>
+
+                <!-- Style Preset -->
+                <div class="form-group">
+                    <label>🎨 Phong Cách</label>
+                    <select id="stylePreset" onchange="handleStyleChange()">
+                        <option value="">-- Không áp dụng --</option>
+                        <option value="realistic">📷 Realistic Photo</option>
+                        <option value="anime">🎌 Anime Style</option>
+                        <option value="oil-painting">🖼️ Oil Painting</option>
+                        <option value="watercolor">💧 Watercolor</option>
+                        <option value="3d-render">🎮 3D Render</option>
+                        <option value="sketch">✏️ Pencil Sketch</option>
+                        <option value="vintage">📸 Vintage Photo</option>
+                        <option value="cyberpunk">🌃 Cyberpunk</option>
+                        <option value="fantasy">✨ Fantasy Art</option>
+                        <option value="minimalist">⚪ Minimalist</option>
+                    </select>
+                    <div class="help-text">Phong cách sẽ tự động thêm vào prompt</div>
+                </div>
+
+                <!-- Reference Image -->
+                <div class="reference-section" id="referenceSection">
+                    <label style="font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px;">
+                        🖼️ Ảnh Tham Chiếu
+                    </label>
+                    <div class="help-text">Click nút "Ref" ở ảnh bất kỳ để dùng làm tham chiếu</div>
+                    <div id="referencePreview" class="reference-preview" style="display: none;">
+                        <img id="referenceImg" src="" alt="Reference">
+                        <div class="reference-actions">
+                            <button class="btn btn-secondary" onclick="clearReference()">✕ Xóa</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prompts Input -->
+                <div class="form-group">
+                    <label>✍️ Mô Tả (mỗi dòng = 1 ảnh)</label>
+                    <textarea id="promptsInput" placeholder="a fishing boat on the ocean&#10;modern city at night&#10;snow-covered mountain"></textarea>
+                    <div class="help-text">Nhập nhiều dòng để tạo nhiều ảnh cùng lúc</div>
+                </div>
+
+                <!-- Settings -->
+                <div class="settings-row">
+                    <div class="form-group">
+                        <label>📐 Tỷ Lệ</label>
+                        <select id="aspectRatio">
+                            <option value="IMAGE_ASPECT_RATIO_LANDSCAPE">Ngang (16:9)</option>
+                            <option value="IMAGE_ASPECT_RATIO_PORTRAIT">Dọc (9:16)</option>
+                            <option value="IMAGE_ASPECT_RATIO_SQUARE">Vuông (1:1)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>🎲 Seed</label>
+                        <input type="number" id="seedInput" placeholder="Auto">
+                    </div>
+                </div>
+
+                <!-- Folder Picker -->
+                <div class="folder-picker">
+                    <label style="font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px;">
+                        📁 Thư Mục Lưu
+                    </label>
+                    <div class="folder-path" id="folderPath">Chưa chọn</div>
+                    <button class="btn btn-secondary" onclick="selectDownloadFolder()" style="width: 100%;">Chọn Thư Mục</button>
+                    <div style="margin-top: 12px;">
+                        <label style="font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="autoDownload">
+                            Tự động tải về sau khi tạo
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <button class="btn btn-success" onclick="generateBatch()" id="generateBtn" style="width: 100%; padding: 14px; font-size: 16px;" disabled>
+                    ✨ Tạo Ảnh
+                </button>
+
+                <div id="progressBar" class="progress-bar" style="display: none;">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+
+                <div class="image-counter">
+                    Đã tạo: <strong id="imageCount">0</strong> ảnh
+                </div>
+            </div>
+
+            <!-- Right Panel: Gallery -->
+            <div class="panel">
+                <h2>🖼️ Thư Viện Ảnh</h2>
+                <div class="gallery" id="gallery">
+                    <div class="empty-state">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <p>Chưa có ảnh nào</p>
+                        <p style="font-size: 13px; margin-top: 12px;">Nhập mô tả và nhấn "Tạo Ảnh"</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="imageModal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModal()">×</button>
+            <img class="modal-image" id="modalImage" src="" alt="">
+            <div class="modal-info">
+                <div class="modal-prompt" id="modalPrompt"></div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="downloadCurrentImage()">📥 Tải về</button>
+                    <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let images = [];
+        let downloadFolderHandle = null;
+        let currentModalImage = null;
+        let referenceImage = null;
+
+        // Style presets
+        const stylePresets = {
+            'realistic': 'professional photography, highly detailed, realistic, 8k resolution',
+            'anime': 'anime style, vibrant colors, manga art, japanese animation',
+            'oil-painting': 'oil painting style, traditional art, fine art, painterly',
+            'watercolor': 'watercolor painting, soft colors, artistic, hand-painted',
+            '3d-render': '3d render, octane render, unreal engine, photorealistic cgi',
+            'sketch': 'pencil sketch, hand-drawn, black and white, artistic drawing',
+            'vintage': 'vintage photograph, retro, old photo, film grain, nostalgic',
+            'cyberpunk': 'cyberpunk style, neon lights, futuristic, sci-fi, dark atmosphere',
+            'fantasy': 'fantasy art, magical, epic, dreamlike, mystical',
+            'minimalist': 'minimalist, simple, clean, modern, minimal design'
+        };
+
+        function handleStyleChange() {
+            // Style will be applied when generating
+        }
+
+        // Chrome & Token functions
+        async function launchChrome() {
+            try {
+                const res = await fetch('/api/launch-chrome', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    updateStatus('ready', 'Sẵn sàng');
+                    document.getElementById('captureBtn').disabled = false;
+                    if (!data.needsLogin) {
+                        document.getElementById('generateBtn').disabled = false;
+                    }
+                } else {
+                    alert('Lỗi: ' + data.error);
+                }
+            } catch (err) {
+                alert('Không thể khởi động: ' + err.message);
+            }
+        }
+
+        async function captureToken() {
+            try {
+                const res = await fetch('/api/capture-token', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    updateStatus('ready', 'Đã kết nối');
+                    document.getElementById('generateBtn').disabled = false;
+                } else {
+                    alert('Lỗi: ' + data.error);
+                }
+            } catch (err) {
+                alert('Không thể lấy token: ' + err.message);
+            }
+        }
+
+        async function resetSession() {
+            try {
+                const res = await fetch('/api/reset', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Đã reset!');
+                }
+            } catch (err) {
+                alert('Lỗi: ' + err.message);
+            }
+        }
+
+        function updateStatus(type, text) {
+            const badge = document.getElementById('statusBadge');
+            badge.className = \`status-badge \${type}\`;
+            badge.textContent = text;
+        }
+
+        // Reference Image
+        function setReferenceImage(imageUrl, prompt, seed, generationId) {
+            referenceImage = { imageUrl, prompt, seed, generationId };
+            document.getElementById('referenceImg').src = imageUrl;
+            document.getElementById('referencePreview').style.display = 'block';
+            document.getElementById('referenceSection').classList.add('has-image');
+        }
+
+        function clearReference() {
+            referenceImage = null;
+            document.getElementById('referencePreview').style.display = 'none';
+            document.getElementById('referenceSection').classList.remove('has-image');
+        }
+
+        // Folder Selection
+        async function selectDownloadFolder() {
+            try {
+                if ('showDirectoryPicker' in window) {
+                    downloadFolderHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    document.getElementById('folderPath').textContent = downloadFolderHandle.name;
+                } else {
+                    alert('Trình duyệt không hỗ trợ File System Access API');
+                }
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Folder selection error:', err);
+                }
+            }
+        }
+
+        // Batch Generation
+        async function generateBatch() {
+            const promptsText = document.getElementById('promptsInput').value.trim();
+            if (!promptsText) {
+                alert('Vui lòng nhập mô tả!');
+                return;
+            }
+
+            const prompts = promptsText.split('\n').filter(p => p.trim());
+            if (prompts.length === 0) {
+                alert('Không có mô tả hợp lệ!');
+                return;
+            }
+
+            // Get settings
+            const aspectRatio = document.getElementById('aspectRatio').value;
+            const seedInput = document.getElementById('seedInput').value;
+            const baseSeed = seedInput ? parseInt(seedInput) : null;
+            const autoDownload = document.getElementById('autoDownload').checked;
+            const style = document.getElementById('stylePreset').value;
+            const styleText = style ? stylePresets[style] : '';
+
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('progressBar').style.display = 'block';
+
+            for (let i = 0; i < prompts.length; i++) {
+                let prompt = prompts[i].trim();
+
+                // Add style to prompt
+                if (styleText) {
+                    prompt = \`\${prompt}, \${styleText}\`;
+                }
+
+                const progress = ((i + 1) / prompts.length) * 100;
+                document.getElementById('progressFill').style.width = progress + '%';
+
+                const loadingId = \`loading-\${Date.now()}\`;
+                addLoadingCard(loadingId, prompts[i]);
+
+                try {
+                    const seed = baseSeed ? baseSeed + i : null;
+                    const result = await generateSingle(prompt, aspectRatio, seed);
+
+                    removeLoadingCard(loadingId);
+
+                    if (result.success) {
+                        addImageToGallery(result.imageUrl, prompts[i], result.seed, result.generationId);
+
+                        if (autoDownload && downloadFolderHandle) {
+                            await autoDownloadImage(result.imageUrl, prompts[i], result.seed);
+                        }
+                    } else {
+                        alert(\`Lỗi: \${result.error}\`);
+                    }
+                } catch (err) {
+                    removeLoadingCard(loadingId);
+                    console.error('Generation error:', err);
+                }
+
+                if (i < prompts.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            }
+
+            document.getElementById('progressBar').style.display = 'none';
+            document.getElementById('generateBtn').disabled = false;
+            updateImageCount();
+        }
+
+        async function generateSingle(prompt, aspectRatio, seed) {
+            const payload = { prompt, aspectRatio };
+            if (seed) payload.seed = seed;
+
+            // If we have reference image, use edit endpoint instead
+            if (referenceImage) {
+                const res = await fetch('/api/edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        referenceImage: referenceImage.imageUrl,
+                        aspectRatio: aspectRatio
+                    })
+                });
+                return await res.json();
+            } else {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                return await res.json();
+            }
+        }
+
+        async function regenerateImage(prompt, aspectRatio, seed) {
+            const loadingId = \`loading-regen-\${Date.now()}\`;
+            addLoadingCard(loadingId, prompt);
+
+            try {
+                const result = await generateSingle(prompt, aspectRatio, seed);
+                removeLoadingCard(loadingId);
+
+                if (result.success) {
+                    addImageToGallery(result.imageUrl, prompt, result.seed, result.generationId);
+                } else {
+                    alert(\`Lỗi: \${result.error}\`);
+                }
+            } catch (err) {
+                removeLoadingCard(loadingId);
+                console.error('Regeneration error:', err);
+            }
+
+            updateImageCount();
+        }
+
+        function addLoadingCard(id, prompt) {
+            const gallery = document.getElementById('gallery');
+            const emptyState = gallery.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            const card = document.createElement('div');
+            card.className = 'loading-card';
+            card.id = id;
+            card.innerHTML = \`
+                <div class="spinner"></div>
+                <div class="loading-text">\${prompt.substring(0, 50)}\${prompt.length > 50 ? '...' : ''}</div>
+            \`;
+            gallery.insertBefore(card, gallery.firstChild);
+        }
+
+        function removeLoadingCard(id) {
+            const card = document.getElementById(id);
+            if (card) card.remove();
+        }
+
+        function addImageToGallery(imageUrl, prompt, seed, generationId) {
+            const image = { imageUrl, prompt, seed, generationId, id: Date.now() };
+            images.unshift(image);
+
+            const gallery = document.getElementById('gallery');
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            card.innerHTML = \`
+                <img src="\${imageUrl}" alt="\${prompt}" onclick="openModal({id: \${image.id}})">
+                <div class="image-info">
+                    <div class="image-prompt">\${prompt}</div>
+                    <div class="image-seed">Seed: \${seed || 'auto'}</div>
+                    <div class="image-actions">
+                        <button class="btn-icon" onclick="setReferenceImage('\${imageUrl}', '\${prompt.replace(/'/g, "\\\\'")}', \${seed}, '\${generationId || ''}')" title="Dùng làm tham chiếu">
+                            🖼️ Ref
+                        </button>
+                        <button class="btn-icon" onclick="regenerateImage('\${prompt.replace(/'/g, "\\\\'")}', '\${document.getElementById('aspectRatio').value}', \${seed})" title="Tạo lại">
+                            🔄 Regen
+                        </button>
+                        <button class="btn-icon" onclick="downloadImage('\${imageUrl}', '\${prompt.replace(/'/g, "\\\\'")}', \${seed})" title="Tải về">
+                            📥
+                        </button>
+                        <button class="btn-icon" onclick="deleteImage(\${image.id})" title="Xóa">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            \`;
+            gallery.insertBefore(card, gallery.firstChild);
+        }
+
+        function deleteImage(id) {
+            if (!confirm('Xóa ảnh này?')) return;
+
+            const index = images.findIndex(img => img.id === id);
+            if (index > -1) {
+                images.splice(index, 1);
+                renderGallery();
+                updateImageCount();
+            }
+        }
+
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '';
+
+            if (images.length === 0) {
+                gallery.innerHTML = \`
+                    <div class="empty-state">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <p>Chưa có ảnh nào</p>
+                    </div>
+                \`;
+                return;
+            }
+
+            images.forEach(img => {
+                const card = document.createElement('div');
+                card.className = 'image-card';
+                card.innerHTML = \`
+                    <img src="\${img.imageUrl}" alt="\${img.prompt}" onclick="openModal({id: \${img.id}})">
+                    <div class="image-info">
+                        <div class="image-prompt">\${img.prompt}</div>
+                        <div class="image-seed">Seed: \${img.seed || 'auto'}</div>
+                        <div class="image-actions">
+                            <button class="btn-icon" onclick="setReferenceImage('\${img.imageUrl}', '\${img.prompt.replace(/'/g, "\\\\'")}', \${img.seed}, '\${img.generationId || ''}')" title="Dùng làm tham chiếu">
+                                🖼️ Ref
+                            </button>
+                            <button class="btn-icon" onclick="regenerateImage('\${img.prompt.replace(/'/g, "\\\\'")}', '\${document.getElementById('aspectRatio').value}', \${img.seed})" title="Tạo lại">
+                                🔄 Regen
+                            </button>
+                            <button class="btn-icon" onclick="downloadImage('\${img.imageUrl}', '\${img.prompt.replace(/'/g, "\\\\'")}', \${img.seed})" title="Tải về">
+                                📥
+                            </button>
+                            <button class="btn-icon" onclick="deleteImage(\${img.id})" title="Xóa">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                \`;
+                gallery.appendChild(card);
+            });
+        }
+
+        function updateImageCount() {
+            document.getElementById('imageCount').textContent = images.length;
+        }
+
+        // Modal
+        function openModal(data) {
+            const image = images.find(img => img.id === data.id);
+            if (!image) return;
+
+            currentModalImage = image;
+            document.getElementById('modalImage').src = image.imageUrl;
+            document.getElementById('modalPrompt').textContent = \`"\${image.prompt}" (Seed: \${image.seed || 'auto'})\`;
+            document.getElementById('imageModal').classList.add('active');
+        }
+
+        function closeModal(event) {
+            if (!event || event.target.id === 'imageModal') {
+                document.getElementById('imageModal').classList.remove('active');
+                currentModalImage = null;
+            }
+        }
+
+        function downloadCurrentImage() {
+            if (currentModalImage) {
+                downloadImage(currentModalImage.imageUrl, currentModalImage.prompt, currentModalImage.seed);
+            }
+        }
+
+        // Download
+        async function downloadImage(imageUrl, prompt, seed) {
+            const filename = \`whisk_\${seed || 'auto'}_\${Date.now()}.jpg\`;
+
+            if (downloadFolderHandle) {
+                try {
+                    await saveToFolder(imageUrl, filename);
+                    return;
+                } catch (err) {
+                    console.error('Auto download failed:', err);
+                }
+            }
+
+            // Fallback
+            const a = document.createElement('a');
+            a.href = imageUrl;
+            a.download = filename;
+            a.click();
+        }
+
+        async function autoDownloadImage(imageUrl, prompt, seed) {
+            if (!downloadFolderHandle) return;
+
+            const filename = \`whisk_\${seed || 'auto'}_\${Date.now()}.jpg\`;
+            try {
+                await saveToFolder(imageUrl, filename);
+            } catch (err) {
+                console.error('Auto download error:', err);
+            }
+        }
+
+        async function saveToFolder(imageUrl, filename) {
+            const response = await fetch(imageUrl);
+            const blob = await response.blob();
+
+            const fileHandle = await downloadFolderHandle.getFileHandle(filename, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>
