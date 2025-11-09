@@ -1,176 +1,193 @@
 @echo off
-chcp 65001 >nul
 setlocal enabledelayedexpansion
-
-:: ============================================
-:: WHISK AI - LAUNCHER SCRIPT
-:: ============================================
-
-title Whisk AI Image Generator
-
-:: Thiết lập màu sắc
+title Whisk AI Server - Port 3002
 color 0A
 
-:: Tạo thư mục logs nếu chưa có
-if not exist "logs" mkdir logs
+:: ============================================
+:: WHISK AI - IMAGE GENERATION & EDITING
+:: ============================================
 
-:: Tạo tên file log với timestamp
-for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
-set LOG_FILE=logs\run_%datetime:~0,8%_%datetime:~8,6%.log
+:: Create log file name with timestamp
+set LOG_FILE=whisk_server_%date:~-4,4%%date:~-10,2%%date:~-7,2%_%time:~0,2%%time:~3,2%%time:~6,2%.log
+set LOG_FILE=%LOG_FILE: =0%
 
-:: Bắt đầu ghi log
-echo ============================================ > "%LOG_FILE%"
-echo WHISK AI - IMAGE GENERATOR >> "%LOG_FILE%"
-echo Started: %date% %time% >> "%LOG_FILE%"
+:: Initialize log file
+echo. > "%LOG_FILE%"
 echo ============================================ >> "%LOG_FILE%"
+echo WHISK AI SERVER - STARTUP LOG >> "%LOG_FILE%"
+echo ============================================ >> "%LOG_FILE%"
+echo Start Time: %date% %time% >> "%LOG_FILE%"
 echo. >> "%LOG_FILE%"
 
-:: Banner
+:: Display header
 cls
 echo.
 echo ============================================================
 echo.
-echo         🎨 WHISK AI - IMAGE GENERATOR 🎨
+echo         WHISK AI - IMAGE GENERATION ^& EDITING
 echo.
 echo         Google Labs Whisk API Integration
 echo.
 echo ============================================================
 echo.
-echo [%time%] Starting Whisk AI Server...
+echo [%time%] Khoi dong server...
+echo [%time%] Khoi dong server... >> "%LOG_FILE%"
 echo.
 
-:: Kiểm tra Node.js
-echo [CHECK] Checking Node.js installation...
-echo [%time%] Checking Node.js installation... >> "%LOG_FILE%"
-
+:: Check Node.js installation
+echo [CHECK] Kiem tra Node.js...
+echo [%time%] Kiem tra Node.js... >> "%LOG_FILE%"
 node --version >nul 2>&1
 if errorlevel 1 (
+    echo [ERROR] Node.js chua duoc cai dat! >> "%LOG_FILE%"
     echo.
-    echo ❌ ERROR: Node.js not found!
+    echo [ERROR] Node.js chua duoc cai dat!
     echo.
-    echo Please install Node.js from: https://nodejs.org/
-    echo Recommended version: v18.x or higher
+    echo Vui long cai dat Node.js tu: https://nodejs.org/
+    echo Khuyen nghi: Node.js v18.x hoac cao hon
     echo.
-    echo [ERROR] Node.js not installed >> "%LOG_FILE%"
     pause
     exit /b 1
 )
 
 for /f "tokens=*" %%i in ('node --version') do set NODE_VERSION=%%i
-echo ✅ Node.js found: %NODE_VERSION%
+echo [OK] Node.js version: %NODE_VERSION%
 echo [OK] Node.js version: %NODE_VERSION% >> "%LOG_FILE%"
-echo.
 
-:: Kiểm tra npm
-echo [CHECK] Checking npm...
-echo [%time%] Checking npm... >> "%LOG_FILE%"
-
+:: Check npm
+echo [CHECK] Kiem tra npm...
+echo [%time%] Kiem tra npm... >> "%LOG_FILE%"
 npm --version >nul 2>&1
 if errorlevel 1 (
-    echo ❌ ERROR: npm not found!
-    echo [ERROR] npm not installed >> "%LOG_FILE%"
+    echo [ERROR] npm chua duoc cai dat! >> "%LOG_FILE%"
+    echo.
+    echo [ERROR] npm chua duoc cai dat!
+    echo.
     pause
     exit /b 1
 )
 
 for /f "tokens=*" %%i in ('npm --version') do set NPM_VERSION=%%i
-echo ✅ npm found: v%NPM_VERSION%
+echo [OK] npm version: v%NPM_VERSION%
 echo [OK] npm version: v%NPM_VERSION% >> "%LOG_FILE%"
-echo.
 
-:: Kiểm tra dependencies
-echo [CHECK] Checking dependencies...
-echo [%time%] Checking dependencies... >> "%LOG_FILE%"
-
-if not exist "node_modules" (
+:: Check if node_modules exists
+echo [CHECK] Kiem tra dependencies...
+echo [%time%] Kiem tra dependencies... >> "%LOG_FILE%"
+if not exist "node_modules\" (
+    echo [WARNING] node_modules chua duoc cai dat
+    echo [WARNING] node_modules chua duoc cai dat >> "%LOG_FILE%"
     echo.
-    echo ⚠️  WARNING: Dependencies not installed!
-    echo.
-    echo Installing dependencies... Please wait...
-    echo [WARNING] Installing dependencies... >> "%LOG_FILE%"
-    echo.
-
+    echo Dang cai dat dependencies... Vui long doi...
+    echo [%time%] Running npm install... >> "%LOG_FILE%"
     call npm install >> "%LOG_FILE%" 2>&1
-
     if errorlevel 1 (
         echo.
-        echo ❌ ERROR: Failed to install dependencies!
-        echo Please check the log file: %LOG_FILE%
-        echo [ERROR] npm install failed >> "%LOG_FILE%"
+        echo [ERROR] npm install that bai!
+        echo [ERROR] npm install that bai! >> "%LOG_FILE%"
+        echo Vui long kiem tra log file: %LOG_FILE%
+        echo.
         pause
         exit /b 1
     )
-
-    echo ✅ Dependencies installed successfully!
-    echo [OK] Dependencies installed >> "%LOG_FILE%"
-    echo.
+    echo [OK] Dependencies da duoc cai dat
+    echo [OK] Dependencies da duoc cai dat >> "%LOG_FILE%"
 ) else (
-    echo ✅ Dependencies already installed
-    echo [OK] Dependencies found >> "%LOG_FILE%"
-    echo.
+    echo [OK] Dependencies da san sang
+    echo [OK] Dependencies da san sang >> "%LOG_FILE%"
 )
 
-:: Tạo các thư mục cần thiết
-echo [CHECK] Creating required directories...
-echo [%time%] Creating directories... >> "%LOG_FILE%"
+:: Check if server.js exists
+echo [CHECK] Kiem tra file server...
+echo [%time%] Kiem tra file server... >> "%LOG_FILE%"
+if not exist "server.js" (
+    echo.
+    echo [ERROR] Khong tim thay server.js!
+    echo [ERROR] Khong tim thay server.js! >> "%LOG_FILE%"
+    echo.
+    pause
+    exit /b 1
+)
+echo [OK] File server.js ton tai
+echo [OK] File server.js ton tai >> "%LOG_FILE%"
 
-if not exist "images" mkdir images
-if not exist "assets" mkdir assets
-if not exist "projects" mkdir projects
-if not exist "chrome-profile" mkdir chrome-profile
+:: Create required directories
+echo [CHECK] Tao cac thu muc can thiet...
+echo [%time%] Tao cac thu muc can thiet... >> "%LOG_FILE%"
+if not exist "images\" mkdir images
+if not exist "assets\" mkdir assets
+if not exist "projects\" mkdir projects
+if not exist "chrome-profile\" mkdir chrome-profile
+echo [OK] Cac thu muc da san sang
+echo [OK] Cac thu muc da san sang >> "%LOG_FILE%"
 
-echo ✅ All directories ready
-echo [OK] Directories created >> "%LOG_FILE%"
-echo.
-
-:: Hiển thị hướng dẫn
-echo ============================================================
-echo.
-echo 📋 QUICK START GUIDE:
-echo.
-echo   1. Server will start on: http://localhost:3002
-echo   2. Browser will open automatically
-echo   3. Click "🚀 Khởi động" to launch Chrome
-echo   4. Login to Google account if needed
-echo   5. Click "🔑 Token" to capture credentials
-echo   6. Start generating images!
-echo.
-echo ============================================================
-echo.
-echo 📝 Log file: %LOG_FILE%
+:: Display instructions
 echo.
 echo ============================================================
+echo   HUONG DAN SU DUNG:
+echo ============================================================
+echo.
+echo 1. Server se khoi dong tren:  http://localhost:3002
+echo.
+echo 2. Browser se tu dong mo sau 3 giay
+echo.
+echo 3. Trong giao dien web:
+echo    - Click nut "Khoi dong" de mo Chrome
+echo    - Dang nhap Google neu can
+echo    - Click nut "Token" de bat token
+echo    - Bat dau tao anh!
+echo.
+echo    *** QUAN TRONG ***
+echo    KHONG duoc click dup vao file index.html!
+echo    PHAI mo qua duong link: http://localhost:3002
+echo.
+echo ============================================================
+echo   THONG TIN SERVER:
+echo ============================================================
+echo.
+echo Port:     3002
+echo URL:      http://localhost:3002
+echo Log file: %LOG_FILE%
+echo.
+echo ============================================================
 echo.
 
-:: Đợi 2 giây
+:: Wait a moment
 timeout /t 2 /nobreak >nul
 
-:: Chạy server và ghi log
-echo [%time%] Starting server... >> "%LOG_FILE%"
-echo.
-echo [START] Server is starting...
-echo.
-echo ────────────────────────────────────────────────────────────
-echo.
-
-:: Mở browser tự động sau 3 giây
+:: Auto-open browser after 3 seconds
+echo [%time%] Se tu dong mo browser sau 3 giay...
+echo [%time%] Se tu dong mo browser sau 3 giay... >> "%LOG_FILE%"
 start /B cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:3002"
 
-:: Chạy server (output sẽ hiện trên console)
-:: Log chi tiết sẽ được server tự ghi vào file
+:: Start server
+echo [%time%] Bat dau khoi dong server...
+echo [%time%] Bat dau khoi dong server... >> "%LOG_FILE%"
+echo.
+echo ============================================================
+echo SERVER DANG CHAY - Nhan Ctrl+C de dung
+echo ============================================================
+echo.
+echo Server log: %LOG_FILE%
+echo.
+
+:: Run server (output shown in console)
 node server.js
 
-:: Khi server dừng
+:: If server stops, log it
 echo.
-echo.
-echo ============================================================
-echo.
-echo [%time%] Server stopped
-echo.
-echo Log saved to: %LOG_FILE%
-echo.
-echo ============================================================
-echo.
-echo [%time%] Server stopped >> "%LOG_FILE%"
+echo. >> "%LOG_FILE%"
+echo [%time%] Server da dung >> "%LOG_FILE%"
+echo End Time: %date% %time% >> "%LOG_FILE%"
 
+echo.
+echo ============================================================
+echo.
+echo [%time%] Server da dung
+echo.
+echo Log file: %LOG_FILE%
+echo.
+echo ============================================================
+echo.
+echo Nhan phim bat ky de thoat...
 pause
