@@ -1110,18 +1110,21 @@
 
                         <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--border-color);">
 
-                        <!-- Manual Project ID & Scene ID (theo ngon.js) -->
+                        <!-- Manual Project URL (tự động parse) -->
                         <div style="margin-bottom: 16px; padding: 12px; background: rgba(251, 188, 5, 0.1); border: 1px solid rgba(251, 188, 5, 0.3); border-radius: 6px;">
                             <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: rgba(251, 188, 5, 1);">
-                                ⚠️ Manual Project ID & Scene ID
+                                ⚠️ Paste Project URL
                             </label>
                             <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">
-                                Tạo project tại <a href="https://labs.google/fx/tools/flow" target="_blank" style="color: var(--primary-color);">labs.google/fx</a>, mở project URL, bật DevTools (F12) → Network tab → tìm request "searchProjectScenes" để lấy sceneId:
+                                Tạo project tại <a href="https://labs.google/fx/tools/flow" target="_blank" style="color: var(--primary-color);">labs.google/fx</a>, sau đó copy toàn bộ URL và paste vào đây:
                             </p>
-                            <input type="text" id="manualProjectId" placeholder="Project ID (VD: f47ac10b-58cc-4372-a567-0e02b2c3d479)" style="width: 100%; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 12px; margin-bottom: 8px;">
-                            <input type="text" id="manualSceneId" placeholder="Scene ID (bắt buộc! Copy từ DevTools)" style="width: 100%; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 12px; margin-bottom: 8px;">
+                            <input type="text" id="projectUrl" placeholder="labs.google/fx/tools/flow/project/xxx/scenes/xxx" style="width: 100%; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 12px; margin-bottom: 8px;">
+                            <div id="parsedIds" style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; display: none;">
+                                <div>✓ Project ID: <code id="displayProjectId" style="color: var(--success-color);"></code></div>
+                                <div>✓ Scene ID: <code id="displaySceneId" style="color: var(--success-color);"></code></div>
+                            </div>
                             <button class="btn btn-secondary" onclick="setManualProjectId()" style="width: 100%; font-size: 12px; padding: 6px;">
-                                📌 Set Project & Scene ID
+                                📌 Set Project & Scene
                             </button>
                         </div>
 
@@ -2784,20 +2787,39 @@
         // Make images globally accessible for video module
         window.images = images;
 
-        // ==================== VEO3 MANUAL PROJECT & SCENE ID (theo ngon.js) ====================
+        // ==================== VEO3 MANUAL PROJECT URL (tự động parse) ====================
         async function setManualProjectId() {
-            const projectId = document.getElementById('manualProjectId').value.trim();
-            const sceneId = document.getElementById('manualSceneId').value.trim();
+            const url = document.getElementById('projectUrl').value.trim();
 
-            if (!projectId) {
-                alert('⚠️ Vui lòng nhập Project ID!');
+            if (!url) {
+                alert('⚠️ Vui lòng paste URL!\n\nVD: labs.google/fx/tools/flow/project/xxx/scenes/xxx');
                 return;
             }
 
-            if (!sceneId) {
-                alert('⚠️ Vui lòng nhập Scene ID!\n\nCách lấy sceneId:\n1. Mở project tại labs.google/fx/tools/flow\n2. Bật DevTools (F12)\n3. Tab Network → tìm request "searchProjectScenes"\n4. Xem Response → copy sceneId');
+            // Parse URL để lấy projectId và sceneId
+            // Format: labs.google/fx/tools/flow/project/76f2cc4e-f1be-46c3-862a-fdad1225e3f5/scenes/4353a047-a122-477a-bbdd-dc63ecdbf263
+            const projectMatch = url.match(/\/project\/([a-f0-9-]{36})/i);
+            const sceneMatch = url.match(/\/scenes\/([a-f0-9-]{36})/i);
+
+            if (!projectMatch) {
+                alert('❌ Không tìm thấy Project ID trong URL!\n\nURL phải có dạng:\nlabs.google/fx/tools/flow/project/xxx/scenes/xxx');
+                document.getElementById('projectUrl').style.borderColor = 'var(--danger-color)';
                 return;
             }
+
+            if (!sceneMatch) {
+                alert('❌ Không tìm thấy Scene ID trong URL!\n\nURL phải có dạng:\nlabs.google/fx/tools/flow/project/xxx/scenes/xxx');
+                document.getElementById('projectUrl').style.borderColor = 'var(--danger-color)';
+                return;
+            }
+
+            const projectId = projectMatch[1];
+            const sceneId = sceneMatch[1];
+
+            // Hiển thị IDs đã parse
+            document.getElementById('displayProjectId').textContent = projectId;
+            document.getElementById('displaySceneId').textContent = sceneId;
+            document.getElementById('parsedIds').style.display = 'block';
 
             try {
                 const response = await fetch('/api/veo3/set-project', {
@@ -2810,15 +2832,14 @@
 
                 if (data.success) {
                     alert(`✅ Đã set thành công!\n\nProject ID: ${projectId}\nScene ID: ${sceneId}\n\nBây giờ có thể gen videos!`);
-                    document.getElementById('manualProjectId').style.borderColor = 'var(--success-color)';
-                    document.getElementById('manualSceneId').style.borderColor = 'var(--success-color)';
+                    document.getElementById('projectUrl').style.borderColor = 'var(--success-color)';
                 } else {
                     alert(`❌ Lỗi: ${data.error}`);
-                    document.getElementById('manualProjectId').style.borderColor = 'var(--danger-color)';
-                    document.getElementById('manualSceneId').style.borderColor = 'var(--danger-color)';
+                    document.getElementById('projectUrl').style.borderColor = 'var(--danger-color)';
                 }
             } catch (err) {
                 alert(`❌ Lỗi: ${err.message}`);
+                document.getElementById('projectUrl').style.borderColor = 'var(--danger-color)';
             }
         }
     </script>
