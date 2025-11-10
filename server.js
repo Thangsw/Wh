@@ -1269,10 +1269,299 @@ app.post('/api/veo3/save-variants', async (req, res) => {
   }
 });
 
+// ============================================
+// VEO3 NEW ENDPOINTS - THEO ĐÚNG FLOW THỰC TẾ
+// ============================================
+
+// Submit batch log (PINHOLE_UPLOAD_IMAGE_TO_CROP, PINHOLE_RESIZE_IMAGE)
+app.post('/api/veo3/submit-batch-log', async (req, res) => {
+  try {
+    const { event, sessionId, properties, aspectRatio } = req.body;
+
+    log(`Veo3 Event: ${event}`);
+
+    const token = await getAccessToken();
+
+    // Build event payload
+    const eventProperties = [
+      { key: 'TOOL_NAME', stringValue: 'PINHOLE' },
+      { key: 'G1_PAYGATE_TIER', stringValue: 'PAYGATE_TIER_TWO' },
+      { key: 'PINHOLE_PROMPT_BOX_MODE', stringValue: 'IMAGE_TO_VIDEO' },
+      { key: 'USER_AGENT', stringValue: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      { key: 'IS_DESKTOP' }
+    ];
+
+    if (properties?.width) {
+      eventProperties.push({ key: 'PINHOLE_UPLOAD_IMAGE_TO_CROP_WIDTH', doubleValue: properties.width });
+      eventProperties.push({ key: 'PINHOLE_UPLOAD_IMAGE_TO_CROP_HEIGHT', doubleValue: properties.height });
+    }
+
+    if (aspectRatio) {
+      eventProperties.push({ key: 'PINHOLE_IMAGE_ASPECT_RATIO', stringValue: aspectRatio });
+    }
+
+    const response = await axios.post(
+      'https://labs.google/fx/api/trpc/general.submitBatchLog',
+      {
+        json: {
+          appEvents: [{
+            event,
+            eventMetadata: { sessionId },
+            eventProperties,
+            activeExperiments: [],
+            eventTime: new Date().toISOString()
+          }]
+        }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Referer': 'https://labs.google/fx/tools/flow',
+          'Origin': 'https://labs.google'
+        }
+      }
+    );
+
+    log(`✓ Event ${event} sent`);
+    res.json({ success: true });
+  } catch (err) {
+    log(`✗ Submit batch log failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Upload cropped image và lấy mediaId
+app.post('/api/veo3/upload-cropped-image', async (req, res) => {
+  try {
+    const { imageBase64, sessionId, aspectRatio } = req.body;
+
+    log('Uploading cropped image to Veo3...');
+
+    const token = await getAccessToken();
+
+    // Upload image qua media.uploadImage
+    const uploadResponse = await axios.post(
+      'https://labs.google/fx/api/trpc/media.uploadImage',
+      {
+        json: {
+          userUploadedImage: { image: imageBase64 }
+        }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Referer': 'https://labs.google/fx/tools/flow',
+          'Origin': 'https://labs.google'
+        }
+      }
+    );
+
+    const mediaGenerationId = uploadResponse.data.result.data.json.mediaGenerationId;
+    const mediaId = mediaGenerationId.mediaKey;
+
+    log(`✓ Image uploaded: ${mediaId.substring(0, 30)}...`);
+
+    // Submit PINHOLE_CROP_IMAGE event
+    await axios.post(
+      'https://labs.google/fx/api/trpc/general.submitBatchLog',
+      {
+        json: {
+          appEvents: [{
+            event: 'PINHOLE_CROP_IMAGE',
+            eventMetadata: {
+              mediaGenerationId: mediaId,
+              sessionId
+            },
+            eventProperties: [
+              { key: 'TOOL_NAME', stringValue: 'PINHOLE' },
+              { key: 'PINHOLE_IMAGE_ASPECT_RATIO', stringValue: aspectRatio },
+              { key: 'G1_PAYGATE_TIER', stringValue: 'PAYGATE_TIER_TWO' },
+              { key: 'PINHOLE_PROMPT_BOX_MODE', stringValue: 'IMAGE_TO_VIDEO' },
+              { key: 'USER_AGENT', stringValue: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+              { key: 'IS_DESKTOP' }
+            ],
+            activeExperiments: [],
+            eventTime: new Date().toISOString()
+          }]
+        }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Referer': 'https://labs.google/fx/tools/flow',
+          'Origin': 'https://labs.google'
+        }
+      }
+    );
+
+    res.json({ success: true, mediaId });
+  } catch (err) {
+    log(`✗ Upload cropped image failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Generate video from 2 images (start + end)
+app.post('/api/veo3/generate-start-end', async (req, res) => {
+  try {
+    const { projectId, sceneId, startImageMediaId, endImageMediaId, prompt, aspectRatio } = req.body;
+
+    log(`Generating video: "${prompt.substring(0, 50)}..."`);
+
+    const token = await getAccessToken();
+
+    // Generate 2 variants với seeds khác nhau
+    const seed1 = Math.floor(Math.random() * 65536);
+    const seed2 = Math.floor(Math.random() * 65536);
+
+    const response = await axios.post(
+      'https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoStartAndEndImage',
+      {
+        clientContext: {
+          projectId,
+          tool: 'PINHOLE',
+          userPaygateTier: 'PAYGATE_TIER_TWO'
+        },
+        requests: [
+          {
+            aspectRatio,
+            seed: seed1,
+            textInput: { prompt },
+            videoModelKey: 'veo_3_1_i2v_s_fast_ultra_fl',
+            startImage: { mediaId: startImageMediaId },
+            endImage: { mediaId: endImageMediaId },
+            metadata: { sceneId }
+          },
+          {
+            aspectRatio,
+            seed: seed2,
+            textInput: { prompt },
+            videoModelKey: 'veo_3_1_i2v_s_fast_ultra_fl',
+            startImage: { mediaId: startImageMediaId },
+            endImage: { mediaId: endImageMediaId },
+            metadata: { sceneId }
+          }
+        ]
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'text/plain;charset=UTF-8',
+          'Referer': 'https://labs.google/',
+          'x-browser-channel': 'stable',
+          'x-browser-year': '2025',
+          'x-client-data': 'CIyIywE='
+        }
+      }
+    );
+
+    const operations = response.data.operations.map(op => ({
+      operation: { name: op.operation.name },
+      sceneId: op.sceneId,
+      status: op.status
+    }));
+
+    log(`✓ Video generation started! ${operations.length} variants`);
+    res.json({ success: true, operations });
+  } catch (err) {
+    log(`✗ Generate video failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Extend video (từ ngon.js)
+app.post('/api/veo3/extend-video', async (req, res) => {
+  try {
+    const { projectId, sceneId, sourceMediaId, prompt, aspectRatio } = req.body;
+
+    log(`Extending video: "${prompt.substring(0, 50)}..."`);
+
+    const token = await getAccessToken();
+    const seed = Math.floor(Math.random() * 65536);
+
+    const response = await axios.post(
+      'https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoExtendVideo',
+      {
+        clientContext: {
+          projectId,
+          tool: 'PINHOLE',
+          userPaygateTier: 'PAYGATE_TIER_TWO'
+        },
+        requests: [{
+          textInput: { prompt },
+          videoInput: {
+            mediaId: sourceMediaId,
+            startFrameIndex: 168,
+            endFrameIndex: 191
+          },
+          videoModelKey: 'veo_3_1_extend_fast_landscape_ultra',
+          aspectRatio,
+          seed,
+          metadata: { sceneId }
+        }]
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'text/plain;charset=UTF-8',
+          'Referer': 'https://labs.google/',
+          'x-browser-channel': 'stable',
+          'x-browser-year': '2025',
+          'x-client-data': 'CIyIywE='
+        }
+      }
+    );
+
+    const operation = {
+      operation: { name: response.data.operations[0].operation.name },
+      sceneId: response.data.operations[0].sceneId,
+      status: response.data.operations[0].status
+    };
+
+    log(`✓ Extend started!`);
+    res.json({ success: true, operation });
+  } catch (err) {
+    log(`✗ Extend video failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// Check video generation status
+app.post('/api/veo3/check-status', async (req, res) => {
+  try {
+    const { operations } = req.body;
+
+    const token = await getAccessToken();
+
+    const response = await axios.post(
+      'https://aisandbox-pa.googleapis.com/v1/video:batchCheckAsyncVideoGenerationStatus',
+      { operations },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'text/plain;charset=UTF-8',
+          'Referer': 'https://labs.google/',
+          'x-browser-channel': 'stable',
+          'x-browser-year': '2025',
+          'x-client-data': 'CIyIywE='
+        }
+      }
+    );
+
+    res.json({ success: true, operations: response.data.operations });
+  } catch (err) {
+    log(`✗ Check status failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
 // Serve videos
 app.use('/videos', express.static(path.join(__dirname, 'videos')));
 
 app.listen(3002, () => {
   log('Server listening on http://localhost:3002');
-  log('Open: http://localhost:3002/index.html\n');
+  log('Open: http://localhost:3002/index2.html\n');
 });
