@@ -350,8 +350,11 @@ const VideoVeo3 = (() => {
                 return;
             }
 
-            const startImage = window.images[0].url;
-            const endImage = window.images[1].url;
+            // Get image URLs from versions array (index2.html structure)
+            const img1 = window.images[0];
+            const img2 = window.images[1];
+            const startImage = img1.versions[img1.currentVersion].imageUrl;
+            const endImage = img2.versions[img2.currentVersion].imageUrl;
             const prompt = document.getElementById('videoPrompt')?.value || 'Transform from start to end';
 
             // Get user settings

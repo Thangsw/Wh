@@ -101,7 +101,10 @@ const VideoModule = (() => {
             
             const img1Url = currentImg.versions[currentImg.currentVersion].imageUrl;
             const img2Url = nextImg.versions[nextImg.currentVersion].imageUrl;
-            
+
+            // Auto-generate scene prompt from image prompts
+            const scenePrompt = `Transform from "${currentImg.prompt}" to "${nextImg.prompt}"`;
+
             scenes.push({
                 id: Date.now() + i,
                 index: i,
@@ -113,7 +116,7 @@ const VideoModule = (() => {
                     imageUrl: img2Url,
                     prompt: nextImg.prompt
                 },
-                prompt: '',
+                prompt: scenePrompt,
                 extend: false
             });
         }
