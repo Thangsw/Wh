@@ -800,6 +800,32 @@ app.post('/api/capture-token', async (req, res) => {
   }
 });
 
+app.post('/api/open-url', async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.json({ success: false, error: 'No URL provided' });
+    }
+
+    if (!session.page) {
+      return res.json({ success: false, error: 'Chrome not launched. Please launch Chrome first.' });
+    }
+
+    log(`Opening URL in Chrome: ${url}`);
+
+    // Open URL in new tab in the same browser
+    const newPage = await session.browser.newPage();
+    await newPage.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+    log(`✓ URL opened successfully in Chrome`);
+    res.json({ success: true, message: 'URL opened in Chrome' });
+  } catch (error) {
+    log(`✗ Failed to open URL: ${error.message}`, 'error');
+    res.json({ success: false, error: error.message });
+  }
+});
+
 app.get('/api/chrome-status', async (req, res) => {
   res.json({
     success: true,

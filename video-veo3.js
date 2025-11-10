@@ -69,11 +69,17 @@ const VideoVeo3 = (() => {
     }
 
     // ==================== UPLOAD IMAGE (3 EVENTS) ====================
-    async function uploadImageForVeo3(imageBase64, aspectRatio = 'landscape') {
-        console.log('Step 1: Crop image to Veo3 size...');
+    async function uploadImageForVeo3(imageBase64, aspectRatio = 'landscape', autoCrop = true) {
+        console.log('Step 1: Prepare image...');
 
-        // Auto crop
-        const croppedBase64 = await cropImageToVeo3Size(imageBase64, aspectRatio);
+        // Auto crop if enabled
+        let croppedBase64 = imageBase64;
+        if (autoCrop) {
+            console.log('Auto-cropping image to Veo3 size...');
+            croppedBase64 = await cropImageToVeo3Size(imageBase64, aspectRatio);
+        } else {
+            console.log('Skipping auto-crop (manual mode)');
+        }
 
         const width = aspectRatio === 'landscape' ? 929 : 507;
         const height = aspectRatio === 'landscape' ? 507 : 929;
@@ -307,8 +313,27 @@ const VideoVeo3 = (() => {
     }
 
     // ==================== UI FUNCTIONS ====================
-    function openLabsGoogle() {
-        window.open('https://labs.google/fx/tools/flow', '_blank');
+    async function openLabsGoogle() {
+        try {
+            // Try to open in existing Chrome session first
+            const response = await fetch('/api/open-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: 'https://labs.google/fx/tools/flow' })
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                // Fallback: open in default browser
+                console.warn('Could not open in Chrome, opening in default browser:', data.error);
+                window.open('https://labs.google/fx/tools/flow', '_blank');
+            }
+        } catch (error) {
+            // Fallback: open in default browser
+            console.error('Error opening Labs Google:', error);
+            window.open('https://labs.google/fx/tools/flow', '_blank');
+        }
     }
 
     async function handleGenerateVideo() {
@@ -329,21 +354,27 @@ const VideoVeo3 = (() => {
             const endImage = window.images[1].url;
             const prompt = document.getElementById('videoPrompt')?.value || 'Transform from start to end';
 
+            // Get user settings
+            const orientation = document.getElementById('videoOrientation')?.value || 'landscape';
+            const autoCrop = document.getElementById('autoCrop')?.checked ?? true;
+
             console.log('=== Starting video generation ===');
             console.log('Start image:', startImage);
             console.log('End image:', endImage);
             console.log('Prompt:', prompt);
+            console.log('Orientation:', orientation);
+            console.log('Auto crop:', autoCrop);
 
             // Convert image URLs to base64
             const startBase64 = await urlToBase64(startImage);
             const endBase64 = await urlToBase64(endImage);
 
-            // Upload 2 images
-            const startMediaId = await uploadImageForVeo3(startBase64, 'landscape');
-            const endMediaId = await uploadImageForVeo3(endBase64, 'landscape');
+            // Upload 2 images (auto crop is handled in uploadImageForVeo3)
+            const startMediaId = await uploadImageForVeo3(startBase64, orientation, autoCrop);
+            const endMediaId = await uploadImageForVeo3(endBase64, orientation, autoCrop);
 
             // Generate video
-            const videos = await generateVideoFrom2Images(startMediaId, endMediaId, prompt, 'landscape');
+            const videos = await generateVideoFrom2Images(startMediaId, endMediaId, prompt, orientation);
 
             console.log('Videos generated:', videos);
 

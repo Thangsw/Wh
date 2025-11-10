@@ -1143,8 +1143,33 @@
 
                         <!-- Step 3: Generate Video -->
                         <div style="margin-bottom: 16px;">
-                            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px;">Bước 3: Video Prompt</label>
-                            <textarea id="videoPrompt" placeholder="Mô tả video: VD: 'Chuyển từ cậu bé thành cô bé'" style="width: 100%; min-height: 80px; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 12px; resize: vertical;"></textarea>
+                            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px;">Bước 3: Cài đặt Video</label>
+
+                            <!-- Video Orientation -->
+                            <div style="margin-bottom: 12px;">
+                                <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">📐 Hướng Video</label>
+                                <select id="videoOrientation" style="width: 100%; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 13px;">
+                                    <option value="landscape">🖥️ Ngang (Landscape 16:9)</option>
+                                    <option value="portrait">📱 Dọc (Portrait 9:16)</option>
+                                </select>
+                            </div>
+
+                            <!-- Crop Mode -->
+                            <div style="margin-bottom: 12px;">
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                                    <input type="checkbox" id="autoCrop" checked style="cursor: pointer;">
+                                    <span>✂️ Tự động crop ảnh (khuyến nghị)</span>
+                                </label>
+                                <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px; margin-left: 24px;">
+                                    Tự động crop ảnh về đúng kích thước video (929x507 hoặc 507x929)
+                                </p>
+                            </div>
+
+                            <!-- Video Prompt -->
+                            <div style="margin-bottom: 8px;">
+                                <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">✍️ Mô tả Video</label>
+                                <textarea id="videoPrompt" placeholder="Mô tả video: VD: 'Chuyển từ cậu bé thành cô bé'" style="width: 100%; min-height: 80px; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); font-size: 12px; resize: vertical;"></textarea>
+                            </div>
                         </div>
 
                         <button class="btn btn-success" onclick="VideoVeo3.handleGenerateVideo()" style="width: 100%; padding: 12px; font-size: 14px;">
