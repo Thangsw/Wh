@@ -1558,6 +1558,46 @@ app.post('/api/veo3/check-status', async (req, res) => {
   }
 });
 
+// Update scene - Add clip to project (bước cuối cùng!)
+app.post('/api/veo3/update-scene', async (req, res) => {
+  try {
+    const { projectId, sceneId, clips } = req.body;
+
+    log(`Updating scene with ${clips.length} clips...`);
+
+    const token = await getAccessToken();
+
+    const response = await axios.post(
+      'https://labs.google/fx/api/trpc/project.updateScene',
+      {
+        json: {
+          projectId,
+          scene: {
+            sceneId,
+            clips
+          },
+          toolName: 'PINHOLE',
+          updateMasks: ['clips']
+        }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Referer': 'https://labs.google/fx/tools/flow',
+          'Origin': 'https://labs.google'
+        }
+      }
+    );
+
+    log(`✓ Scene updated successfully!`);
+    res.json({ success: true, data: response.data });
+  } catch (err) {
+    log(`✗ Update scene failed: ${err.message}`, 'error');
+    res.json({ success: false, error: err.message });
+  }
+});
+
 // Serve videos
 app.use('/videos', express.static(path.join(__dirname, 'videos')));
 

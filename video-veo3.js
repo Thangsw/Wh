@@ -234,7 +234,14 @@ const VideoVeo3 = (() => {
             // Check nếu tất cả đã xong
             if (successCount + failedCount >= operations.length) {
                 console.log('✓ Video generation complete!');
-                return data.operations.filter(op => op.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL');
+                const successfulOps = data.operations.filter(op => op.status === 'MEDIA_GENERATION_STATUS_SUCCESSFUL');
+
+                // Log mediaGenerationId for debugging
+                successfulOps.forEach((op, idx) => {
+                    console.log(`Video ${idx + 1} mediaGenerationId:`, op.mediaGenerationId);
+                });
+
+                return successfulOps;
             }
 
             // Update operations for next poll
@@ -242,6 +249,42 @@ const VideoVeo3 = (() => {
         }
 
         throw new Error('Timeout! Video generation took too long.');
+    }
+
+    // ==================== UPDATE SCENE (Add clip to project) ====================
+    async function updateScene(clipMediaId, prompt, lengthSeconds = 8) {
+        console.log('Updating scene with new clip...');
+
+        if (!projectId || !sceneId) {
+            throw new Error('No project/scene set!');
+        }
+
+        // Build clip object
+        const newClip = {
+            clipId: clipMediaId,
+            startTime: '0.000000000s',
+            endTime: `${lengthSeconds}.000000000s`,
+            prompt: prompt
+        };
+
+        const response = await fetch('/api/veo3/update-scene', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                projectId,
+                sceneId,
+                clips: [newClip]  // Replace với clip mới (hoặc append nếu cần)
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error('Update scene failed: ' + data.error);
+        }
+
+        console.log(`✓ Scene updated! Clip added to project.`);
+        return data;
     }
 
     // ==================== SET PROJECT/SCENE FROM URL ====================
@@ -302,7 +345,20 @@ const VideoVeo3 = (() => {
             // Generate video
             const videos = await generateVideoFrom2Images(startMediaId, endMediaId, prompt, 'landscape');
 
-            alert(`✅ Hoàn thành!\n\nĐã tạo ${videos.length} video variants!`);
+            console.log('Videos generated:', videos);
+
+            // Lấy clipId từ video đầu tiên (successful)
+            if (videos.length > 0 && videos[0].mediaGenerationId) {
+                const clipMediaId = videos[0].mediaGenerationId;
+
+                // Update scene - Add clip to project
+                console.log('Adding clip to project...');
+                await updateScene(clipMediaId, prompt, 8);
+
+                alert(`✅ Hoàn thành!\n\nĐã tạo ${videos.length} video variants và thêm vào project!`);
+            } else {
+                alert(`✅ Hoàn thành!\n\nĐã tạo ${videos.length} video variants!`);
+            }
 
             // Display videos
             displayVideos(videos);
@@ -353,6 +409,7 @@ const VideoVeo3 = (() => {
         cropImageToVeo3Size,
         uploadImageForVeo3,
         generateVideoFrom2Images,
-        extendVideo
+        extendVideo,
+        updateScene
     };
 })();
