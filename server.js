@@ -1,3 +1,9 @@
+// ################################################################
+// # UPDATED: 2025-11-10 - Veo3 Video Generation Integration
+// # - Added GET /api/veo3/get-session endpoint
+// # - Updated /api/veo3/set-project to accept both projectId & sceneId
+// # - Manual project/scene setup workflow (no auto-create)
+// ################################################################
 const express = require('express');
 const puppeteer = require('puppeteer');
 const axios = require('axios');

@@ -1,5 +1,9 @@
-// video.js - Video Tab Logic (FIXED)
-// Xử lý gen video từ ảnh bằng Veo3
+// ################################################################
+// # video.js - UPDATED: 2025-11-10 - Veo3 Video Generation
+// # - Removed auto-create project/scene (caused 404 errors)
+// # - Added checkProjectAndScene() - manual setup only
+// # - Must set projectId/sceneId manually before generating videos
+// ################################################################
 
 const VideoModule = (() => {
     // State

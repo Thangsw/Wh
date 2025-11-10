@@ -1,4 +1,9 @@
 @echo off
+:: ################################################################
+:: # UPDATED: 2025-11-10 - Veo3 Video Generation Integration
+:: # - Fixed PowerShell logging command for compatibility
+:: # - Dual output: console + log file for debugging
+:: ################################################################
 setlocal enabledelayedexpansion
 title Whisk AI Server - Port 3002
 color 0A
